@@ -1,12 +1,14 @@
 import os
 from flask import Flask, request, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS  # <-- 1. Importamos CORS
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
 
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app)  # <-- 2. Activamos CORS para evitar bloqueos con el Frontend
 app.secret_key = os.getenv('SECRET_KEY', 'change-me')
 
 database_url = os.getenv('DATABASE_URL')
@@ -118,6 +120,7 @@ def actualizar_perfil(id):
     data = request.get_json() or {}
     nombre = data.get('nombre')
     correo = data.get('correo')
+    password = data.get('password')  # <-- Añadido soporte para contraseña
 
     try:
         usuario = Usuario.query.get(id)
@@ -136,6 +139,9 @@ def actualizar_perfil(id):
 
         if nombre:
             usuario.nombre = nombre
+
+        if password:  # <-- Si se envía contraseña, se encripta automáticamente
+            usuario.password = password
 
         db.session.commit()
         return jsonify(message='Perfil actualizado.', usuario=usuario.to_dict()), 200
@@ -198,6 +204,9 @@ def home():
     return {"status": "Microservicio de Usuarios Corriendo Exitosamente"}, 200
 
 if __name__ == "__main__":
-
+    # 3. Restauramos la creación automática de tablas en Railway al iniciar el script
+    with app.app_context():
+        db.create_all()
+        
     port = int(os.environ.get("PORT", 48910))
     app.run(host="0.0.0.0", port=port, debug=True)
