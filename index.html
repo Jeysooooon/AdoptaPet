@@ -3,182 +3,577 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AdoptsPet - Panel de Pruebas Visual</title>
-    <!-- Usamos Tailwind CSS para que se vea hermoso de inmediato -->
+    <title>AdoptsPet - Portal de Adopción</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
-<body class="bg-gray-100 min-h-screen text-gray-800 font-sans">
+<body class="bg-slate-50 font-sans h-screen flex overflow-hidden">
 
-    <!-- Encabezado -->
-    <header class="bg-gradient-to-r from-teal-500 to-emerald-600 text-white py-6 shadow-md">
-        <div class="container mx-auto px-6 flex justify-between items-center">
-            <h1 class="text-3xl font-extrabold tracking-wide">🐾 AdoptsPet</h1>
-        </div>
-    </header>
-
-        <!-- Alerta de Estado -->
-        <div id="statusAlert" class="hidden mb-6 p-4 rounded-lg text-center font-semibold transition-all duration-300"></div>
-
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-
-            <!-- 1. REGISTRO DE USUARIO (Puerto 48910) -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                <div class="flex items-center gap-3 mb-4">
-                    <span class="p-2.5 bg-blue-50 text-blue-600 rounded-xl font-bold">01</span>
-                    <h2 class="text-xl font-bold text-gray-800">Registrar Usuario</h2>
-                </div>
-                <form id="formUsuario" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre Completo</label>
-                        <input type="text" id="userNombre" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Correo Electrónico</label>
-                        <input type="email" id="userCorreo" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Contraseña</label>
-                        <input type="password" id="userPassword" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-gray-50">
-                    </div>
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                        Guardar Usuario 💾
-                    </button>
-                </form>
+    <!-- 📊 SIDEBAR (Menú Lateral de Navegación) -->
+    <aside class="w-64 bg-slate-900 text-slate-200 flex flex-col justify-between shadow-xl">
+        <div>
+            <!-- Logo -->
+            <div class="p-6 bg-slate-950 flex items-center gap-3">
+                <span class="text-3xl">🐾</span>
+                <span class="text-xl font-black tracking-wider text-teal-400">AdoptsPet</span>
             </div>
-
-            <!-- 2. REGISTRO DE MASCOTA (Puerto 48914) -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                <div class="flex items-center gap-3 mb-4">
-                    <span class="p-2.5 bg-emerald-50 text-emerald-600 rounded-xl font-bold">02</span>
-                    <h2 class="text-xl font-bold text-gray-800">Registrar Mascota</h2>
-                </div>
-                <form id="formMascota" class="space-y-3">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre Mascota</label>
-                        <input type="text" id="petNombre" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50">
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Especie</label>
-                            <select id="petEspecie" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50">
-                                <option value="Perro">Perro</option>
-                                <option value="Gato">Gato</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Raza</label>
-                            <input type="text" id="petRaza" placeholder="Ej. Criollo" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50">
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Edad (Meses)</label>
-                            <input type="number" id="petEdad" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Tamaño</label>
-                            <select id="petTamano" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50">
-                                <option value="Pequeño">Pequeño</option>
-                                <option value="Mediano">Mediano</option>
-                                <option value="Grande">Grande</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Descripción</label>
-                        <textarea id="petDesc" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-gray-50 h-16"></textarea>
-                    </div>
-                    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                        Guardar Mascota 🐶
-                    </button>
-                </form>
-            </div>
-
-            <!-- 3. REALIZAR DONACIÓN (Puerto 48912) -->
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-                <div class="flex items-center gap-3 mb-4">
-                    <span class="p-2.5 bg-amber-50 text-amber-600 rounded-xl font-bold">03</span>
-                    <h2 class="text-xl font-bold text-gray-800">Registrar Donación</h2>
-                </div>
-                <form id="formDonacion" class="space-y-4">
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Monto de Donación ($)</label>
-                        <input type="number" step="0.01" id="donMonto" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-gray-50" placeholder="0.00">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">ID del Donante (Opcional)</label>
-                        <input type="number" id="donUserId" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-gray-50" placeholder="Ej. 1">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-bold text-gray-500 uppercase mb-1">Comentario</label>
-                        <input type="text" id="donComentario" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 bg-gray-50" placeholder="Ej. Para alimento de perritos">
-                    </div>
-                    <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">
-                        Registrar Donación 💰
-                    </button>
-                </form>
-            </div>
-
-        </div>
-
-        <!-- SECCIÓN DE MASCOTAS REGISTRADAS (LECTURA LIVE DE DB) -->
-        <div class="mt-12 bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
-            <div class="flex justify-between items-center mb-6">
-                <div>
-                    <h2 class="text-2xl font-bold text-gray-800">🐾 Mascotas en la Base de Datos</h2>
-                    <p class="text-sm text-gray-500">Lectura en tiempo real del microservicio en el puerto 48914</p>
-                </div>
-                <button onclick="cargarMascotas()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-2">
-                    🔄 Sincronizar / Refrescar
+            
+            <!-- Items de navegación -->
+            <nav class="p-4 space-y-1">
+                <button onclick="switchView('view-mascotas')" id="btn-view-mascotas" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-teal-600 text-white font-semibold transition-all">
+                    <i class="fa-solid fa-dog w-5"></i> Mascotas
                 </button>
-            </div>
+                <button onclick="switchView('view-adopciones')" id="btn-view-adopciones" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all">
+                    <i class="fa-solid fa-heart w-5"></i> Adopciones
+                </button>
+                <button onclick="switchView('view-donaciones')" id="btn-view-donaciones" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all">
+                    <i class="fa-solid fa-hand-holding-dollar w-5"></i> Donaciones
+                </button>
+                <button onclick="switchView('view-eventos')" id="btn-view-eventos" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all">
+                    <i class="fa-solid fa-calendar-days w-5"></i> Eventos
+                </button>
+                <button onclick="switchView('view-notificaciones')" id="btn-view-notificaciones" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all">
+                    <i class="fa-solid fa-bell w-5"></i> Notificaciones
+                </button>
+            </nav>
+        </div>
 
-            <!-- Tabla de mascotas -->
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="border-b border-gray-200 bg-gray-50 text-gray-500 text-xs font-bold uppercase tracking-wider">
-                            <th class="py-3 px-4">ID</th>
-                            <th class="py-3 px-4">Nombre</th>
-                            <th class="py-3 px-4">Especie/Raza</th>
-                            <th class="py-3 px-4">Edad</th>
-                            <th class="py-3 px-4">Tamaño</th>
-                            <th class="py-3 px-4">Estado</th>
-                        </tr>
-                    </thead>
-                    <tbody id="tablaMascotas" class="divide-y divide-gray-100 text-sm">
-                        <!-- Las mascotas se insertan aquí con JavaScript -->
-                        <tr>
-                            <td colspan="6" class="py-6 text-center text-gray-400">Presiona "Sincronizar" para cargar mascotas de la base de datos...</td>
-                        </tr>
-                    </tbody>
-                </table>
+        <!-- Footer del Sidebar / Perfil -->
+        <div class="p-4 border-t border-slate-800">
+            <button onclick="switchView('view-perfil')" id="btn-view-perfil" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all">
+                <i class="fa-solid fa-user-circle text-xl"></i>
+                <div class="text-left">
+                    <p class="text-xs text-slate-500 font-bold">SESIÓN</p>
+                    <p class="text-sm font-semibold">Mi Cuenta</p>
+                </div>
+            </button>
+        </div>
+    </aside>
+
+    <!-- 🖥️ CONTENIDO PRINCIPAL (Área de Trabajo) -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+        
+        <!-- Header Superior -->
+        <header class="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between">
+            <h2 id="current-view-title" class="text-xl font-bold text-slate-800">🐾 Mascotas Disponibles</h2>
+            <div id="connectionStatus" class="flex items-center gap-2 text-xs font-semibold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Servidores Activos
             </div>
+        </header>
+
+        <!-- Contenedor de Vistas Dinámicas -->
+        <div class="flex-1 overflow-y-auto p-8">
+            <div id="globalAlert" class="hidden mb-6 p-4 rounded-xl text-center font-semibold transition-all"></div>
+
+            <!-- ==================== 1. VISTA MASCOTAS ==================== -->
+            <section id="view-mascotas" class="view-section space-y-8">
+                <div class="flex justify-between items-center bg-teal-50 p-6 rounded-2xl border border-teal-100">
+                    <div>
+                        <h3 class="text-lg font-bold text-teal-900">¿Eres Administrador o Albergue?</h3>
+                        <p class="text-sm text-teal-700">Registra un nuevo peludito para que aparezca en el catálogo público de inmediato.</p>
+                    </div>
+                    <button onclick="toggleModal('modal-nueva-mascota', true)" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 px-5 rounded-xl transition-all shadow-md">
+                        + Registrar Mascota
+                    </button>
+                </div>
+
+                <!-- Catálogo Público (Cards de Mascotas) -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="catalogoMascotas">
+                    <!-- Cards dinámicas aquí -->
+                </div>
+            </section>
+
+            <!-- ==================== 2. VISTA ADOPCIONES ==================== -->
+            <section id="view-adopciones" class="view-section hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h3 class="text-lg font-bold mb-4">Formulario de Solicitud de Adopción</h3>
+                    <form id="formAdopcion" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">ID Mascota a Adoptar</label>
+                            <input type="number" id="adoptPetId" required class="w-full px-3 py-2 border rounded-xl bg-slate-50" placeholder="Ej. 1">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">ID Solicitante (Tu ID de Usuario)</label>
+                            <input type="number" id="adoptUserId" required class="w-full px-3 py-2 border rounded-xl bg-slate-50" placeholder="Ej. 1">
+                        </div>
+                        <button type="submit" class="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all">
+                            Enviar Solicitud ❤️
+                        </button>
+                    </form>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h3 class="text-lg font-bold mb-4">Historial de Adopciones</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 font-bold uppercase text-xs border-b">
+                                    <th class="p-3">ID Solicitud</th>
+                                    <th class="p-3">ID Mascota</th>
+                                    <th class="p-3">ID Usuario</th>
+                                    <th class="p-3">Fecha</th>
+                                    <th class="p-3">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaAdopciones" class="divide-y divide-slate-100">
+                                <tr><td colspan="5" class="p-4 text-center text-slate-400">Cargando solicitudes...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 3. VISTA DONACIONES ==================== -->
+            <section id="view-donaciones" class="view-section hidden space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm md:col-span-1">
+                        <h3 class="text-lg font-bold mb-4">Apoya nuestra labor 💖</h3>
+                        <form id="formDonacion" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">Monto ($)</label>
+                                <input type="number" step="0.01" id="donMonto" required class="w-full px-3 py-2 border rounded-xl bg-slate-50" placeholder="10.00">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">ID Donante (Opcional)</label>
+                                <input type="number" id="donUserId" class="w-full px-3 py-2 border rounded-xl bg-slate-50" placeholder="Ej: 1">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">Mensaje de apoyo</label>
+                                <textarea id="donComentario" class="w-full px-3 py-2 border rounded-xl bg-slate-50 h-20" placeholder="¡Mucho éxito!"></textarea>
+                            </div>
+                            <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 rounded-xl transition-all">
+                                Confirmar Donación 💳
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm md:col-span-2">
+                        <h3 class="text-lg font-bold mb-4">Donantes de Corazón</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr class="bg-slate-50 text-slate-500 font-bold uppercase text-xs border-b">
+                                        <th class="p-3">ID</th>
+                                        <th class="p-3">Donante ID</th>
+                                        <th class="p-3">Monto</th>
+                                        <th class="p-3">Comentario</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaDonaciones" class="divide-y divide-slate-100">
+                                    <tr><td colspan="4" class="p-4 text-center text-slate-400">Cargando donaciones...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 4. VISTA EVENTOS ==================== -->
+            <section id="view-eventos" class="view-section hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h3 class="text-lg font-bold mb-4">Próximos Eventos de Adopción</h3>
+                    <div id="listaEventos" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Tarjetas de Eventos -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 5. VISTA NOTIFICACIONES ==================== -->
+            <section id="view-notificaciones" class="view-section hidden space-y-4">
+                <div class="max-w-2xl mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                    <h3 class="text-lg font-bold mb-4">Bandeja de Entrada</h3>
+                    <div id="listaNotificaciones" class="space-y-3">
+                        <!-- Notificaciones dinámicas -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 6. VISTA MI PERFIL ==================== -->
+            <section id="view-perfil" class="view-section hidden max-w-md mx-auto space-y-6">
+                <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-lg">
+                    <h3 class="text-xl font-bold mb-6 text-center">🔐 Registro de Nuevo Usuario</h3>
+                    <form id="formUsuario" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Nombre Completo</label>
+                            <input type="text" id="userNombre" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Correo Electrónico</label>
+                            <input type="email" id="userCorreo" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Contraseña</label>
+                            <input type="password" id="userPassword" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                        </div>
+                        <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl transition-all">
+                            Registrarse
+                        </button>
+                    </form>
+                </div>
+            </section>
+
         </div>
     </main>
 
-    <!-- LOGIC SCRIPT -->
-    <script>
-        // URLs Locales de los Microservicios
-        const URL_USUARIOS = "http://localhost:48910/registro";
-        const URL_MASCOTAS = "http://localhost:48914/mascotas";
-        const URL_DONACIONES = "http://localhost:48912/donaciones";
+    <!-- 🚨 MODAL: NUEVA MASCOTA (OCULTO POR DEFECTO) -->
+    <div id="modal-nueva-mascota" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
+            <header class="p-6 bg-slate-50 border-b flex justify-between items-center">
+                <h3 class="text-lg font-bold text-slate-800">➕ Agregar Mascota</h3>
+                <button onclick="toggleModal('modal-nueva-mascota', false)" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </header>
+            <form id="formMascota" class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Nombre</label>
+                        <input type="text" id="petNombre" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Especie</label>
+                        <select id="petEspecie" class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                            <option value="Perro">Perro 🐶</option>
+                            <option value="Gato">Gato 🐱</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="col-span-2">
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Raza</label>
+                        <input type="text" id="petRaza" required class="w-full px-3 py-2 border rounded-xl bg-slate-50" placeholder="Ej. Husky">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Edad (Meses)</label>
+                        <input type="number" id="petEdad" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Tamaño</label>
+                    <select id="petTamano" class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                        <option value="Pequeño">Pequeño</option>
+                        <option value="Mediano">Mediano</option>
+                        <option value="Grande">Grande</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Descripción</label>
+                    <textarea id="petDesc" required class="w-full px-3 py-2 border rounded-xl bg-slate-50 h-20" placeholder="Cuéntanos un poco sobre su temperamento..."></textarea>
+                </div>
+                <div class="pt-4 flex gap-3 justify-end border-t">
+                    <button type="button" onclick="toggleModal('modal-nueva-mascota', false)" class="px-4 py-2 text-slate-500 hover:text-slate-700 font-bold">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold transition-all shadow-md">Guardar Mascota</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-        // Función para mostrar alertas de éxito o error
-        function mostrarAlerta(mensaje, esError = false) {
-            const alert = document.getElementById('statusAlert');
-            alert.textContent = mensaje;
-            alert.className = esError 
-                ? "mb-6 p-4 rounded-lg text-center font-semibold bg-red-100 text-red-700" 
-                : "mb-6 p-4 rounded-lg text-center font-semibold bg-green-100 text-green-700";
-            
-            // Auto ocultar después de 4 segundos
-            setTimeout(() => {
-                alert.className = "hidden";
-            }, 4000);
+    <!-- 🌐 SCRIPT DE NAVEGACIÓN Y LLAMADO A MICROSERVICIOS -->
+    <script>
+        // Configuración de Puertos Locales
+        const PORTS = {
+            usuarios: "48910",
+            adopciones: "48911",
+            donaciones: "48912",
+            eventos: "48913",
+            mascotas: "48914",
+            notificaciones: "48915"
+        };
+
+        // 🔀 Función para alternar entre las pestañas del Menú Lateral
+        function switchView(viewId) {
+            // Ocultar todas las secciones
+            document.querySelectorAll('.view-section').forEach(sec => sec.classList.add('hidden'));
+            // Mostrar la sección seleccionada
+            document.getElementById(viewId).classList.remove('hidden');
+
+            // Actualizar estados visuales de los botones del menú lateral
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all";
+            });
+            const activeBtn = document.getElementById(`btn-${viewId}`);
+            if (activeBtn) {
+                if (viewId === 'view-mascotas') activeBtn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-teal-600 text-white font-semibold transition-all";
+                else if (viewId === 'view-adopciones') activeBtn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-rose-600 text-white font-semibold transition-all";
+                else if (viewId === 'view-donaciones') activeBtn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500 text-white font-semibold transition-all";
+                else activeBtn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 text-white font-semibold transition-all";
+            }
+
+            // Cambiar título superior del Header
+            const titleMap = {
+                'view-mascotas': '🐶 Mascotas Disponibles',
+                'view-adopciones': '❤️ Solicitudes de Adopción',
+                'view-donaciones': '💰 Registro de Donaciones',
+                'view-eventos': '📅 Eventos del Refugio',
+                'view-notificaciones': '🔔 Mis Notificaciones',
+                'view-perfil': '👤 Configuración de Perfil'
+            };
+            document.getElementById('current-view-title').textContent = titleMap[viewId] || "AdoptsPet";
+
+            // Lanzar cargas automáticas al cambiar de sección
+            if (viewId === 'view-mascotas') cargarCatalogoMascotas();
+            if (viewId === 'view-adopciones') cargarHistorialAdopciones();
+            if (viewId === 'view-donaciones') cargarHistorialDonaciones();
+            if (viewId === 'view-eventos') cargarEventos();
+            if (viewId === 'view-notificaciones') cargarNotificaciones();
         }
 
-        // 1. Guardar Usuario
+        // 📦 Alternar Visibilidad de Ventanas Modales
+        function toggleModal(modalId, show) {
+            const modal = document.getElementById(modalId);
+            if (show) modal.classList.remove('hidden');
+            else modal.classList.add('hidden');
+        }
+
+        // ✉️ Notificaciones de alerta visuales en pantalla
+        function showNotification(message, isError = false) {
+            const alertDiv = document.getElementById('globalAlert');
+            alertDiv.textContent = message;
+            alertDiv.className = isError 
+                ? "mb-6 p-4 rounded-xl text-center font-bold bg-red-100 text-red-700 shadow-sm border border-red-200"
+                : "mb-6 p-4 rounded-xl text-center font-bold bg-green-100 text-green-700 shadow-sm border border-green-200";
+            alertDiv.classList.remove('hidden');
+            setTimeout(() => alertDiv.classList.add('hidden'), 4000);
+        }
+
+        // ==================== OPERACIONES DEL FRONTEND (FETCH A MICROSERVICIOS) ====================
+
+        // 🐶 1. Cargar catálogo de mascotas para los usuarios (GET)
+        async function cargarCatalogoMascotas() {
+            const container = document.getElementById('catalogoMascotas');
+            container.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 font-medium">Buscando amiguitos en la base de datos de Railway...</div>`;
+
+            try {
+                const res = await fetch(`http://localhost:${PORTS.mascotas}/mascotas`);
+                const data = await res.json();
+
+                if (res.ok && data.mascotas.length > 0) {
+                    container.innerHTML = "";
+                    data.mascotas.forEach(mascota => {
+                        const avatar = mascota.especie.toLowerCase() === 'perro' ? '🐕' : '🐈';
+                        container.innerHTML += `
+                            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-lg transition-all flex flex-col justify-between">
+                                <div class="p-6">
+                                    <div class="flex justify-between items-start mb-4">
+                                        <div class="text-4xl p-3 bg-slate-50 rounded-2xl">${avatar}</div>
+                                        <span class="px-3 py-1 text-xs font-bold rounded-full ${mascota.estado === 'Disponible' ? 'bg-emerald-100 text-emerald-800':'bg-slate-100 text-slate-600'}">
+                                            ${mascota.estado}
+                                        </span>
+                                    </div>
+                                    <h4 class="text-xl font-bold text-slate-800 mb-1">${mascota.nombre}</h4>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">${mascota.especie} • ${mascota.raza}</p>
+                                    <p class="text-sm text-slate-600 line-clamp-3">${mascota.descripcion}</p>
+                                </div>
+                                <div class="px-6 pb-6 pt-4 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                                    <span class="text-sm font-semibold text-slate-500">${mascota.edad_meses} Meses • ${mascota.tamaño}</span>
+                                    <button onclick="solicitarAdopcionRapida(${mascota.id_mascota})" class="bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs py-2 px-4 rounded-xl transition-all shadow-sm">
+                                        Adoptar ❤️
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    container.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400">No hay mascotas disponibles en este momento.</div>`;
+                }
+            } catch (err) {
+                container.innerHTML = `<div class="col-span-full py-12 text-center text-red-500 font-semibold">No se pudo conectar al Microservicio de Mascotas (Puerto ${PORTS.mascotas}).</div>`;
+            }
+        }
+
+        // 📝 Registro de nueva Mascota (POST)
+        document.getElementById('formMascota').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                nombre: document.getElementById('petNombre').value,
+                especie: document.getElementById('petEspecie').value,
+                raza: document.getElementById('petRaza').value,
+                edad_meses: parseInt(document.getElementById('petEdad').value),
+                tamaño: document.getElementById('petTamano').value,
+                descripcion: document.getElementById('petDesc').value
+            };
+
+            try {
+                const res = await fetch(`http://localhost:${PORTS.mascotas}/mascotas`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    showNotification("🐾 ¡Mascota agregada de manera exitosa!");
+                    toggleModal('modal-nueva-mascota', false);
+                    document.getElementById('formMascota').reset();
+                    cargarCatalogoMascotas();
+                } else {
+                    showNotification("No se pudo agregar el registro.", true);
+                }
+            } catch (err) {
+                showNotification("Error de conexión con el servicio de Mascotas.", true);
+            }
+        });
+
+        // 🤝 2. Enviar Solicitud de Adopción (POST)
+        document.getElementById('formAdopcion').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                id_mascota: parseInt(document.getElementById('adoptPetId').value),
+                id_usuario: parseInt(document.getElementById('adoptUserId').value)
+            };
+
+            try {
+                const res = await fetch(`http://localhost:${PORTS.adopciones}/adopciones`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    showNotification("💖 ¡Solicitud de adopción recibida con éxito!");
+                    document.getElementById('formAdopcion').reset();
+                    cargarHistorialAdopciones();
+                } else {
+                    showNotification("Error procesando adopción.", true);
+                }
+            } catch (err) {
+                showNotification("Fallo de comunicación con Adopciones.", true);
+            }
+        });
+
+        // Carga rápida al dar clic en la tarjeta de un animalito
+        function solicitarAdopcionRapida(idMascota) {
+            switchView('view-adopciones');
+            document.getElementById('adoptPetId').value = idMascota;
+        }
+
+        async function cargarHistorialAdopciones() {
+            const tbody = document.getElementById('tablaAdopciones');
+            try {
+                const res = await fetch(`http://localhost:${PORTS.adopciones}/adopciones`);
+                const data = await res.json();
+                if (res.ok && data.adopciones.length > 0) {
+                    tbody.innerHTML = "";
+                    data.adopciones.forEach(item => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td class="p-3 font-semibold text-slate-500">#${item.id}</td>
+                                <td class="p-3">Mascota #${item.id_mascota}</td>
+                                <td class="p-3">Usuario #${item.id_usuario}</td>
+                                <td class="p-3">${item.fecha || 'Reciente'}</td>
+                                <td class="p-3"><span class="px-2 py-0.5 text-xs font-bold rounded-full bg-amber-100 text-amber-800">${item.estado}</span></td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">No hay registros de adopción.</td></tr>`;
+                }
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">Servicio de Adopciones inactivo.</td></tr>`;
+            }
+        }
+
+        // 💰 3. Donaciones
+        document.getElementById('formDonacion').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const uid = document.getElementById('donUserId').value;
+            const payload = {
+                monto: parseFloat(document.getElementById('donMonto').value),
+                id_usuario: uid ? parseInt(uid) : null,
+                comentario: document.getElementById('donComentario').value
+            };
+
+            try {
+                const res = await fetch(`http://localhost:${PORTS.donaciones}/donaciones`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    showNotification("💳 ¡Gracias por tu enorme donación!");
+                    document.getElementById('formDonacion').reset();
+                    cargarHistorialDonaciones();
+                }
+            } catch (err) {
+                showNotification("Fallo al registrar donación.", true);
+            }
+        });
+
+        async function cargarHistorialDonaciones() {
+            const tbody = document.getElementById('tablaDonaciones');
+            try {
+                const res = await fetch(`http://localhost:${PORTS.donaciones}/donaciones`);
+                const data = await res.json();
+                if (res.ok && data.donaciones.length > 0) {
+                    tbody.innerHTML = "";
+                    data.donaciones.forEach(item => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td class="p-3 font-semibold text-slate-500">#${item.id}</td>
+                                <td class="p-3">Usuario #${item.id_usuario || 'Anónimo'}</td>
+                                <td class="p-3 font-bold text-slate-800">$${parseFloat(item.monto).toFixed(2)}</td>
+                                <td class="p-3 text-slate-500">${item.comentario || 'Sin comentarios'}</td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">No hay donaciones registradas aún.</td></tr>`;
+                }
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">Servicio de Donaciones inactivo.</td></tr>`;
+            }
+        }
+
+        // 📅 4. Eventos (Simulado de lectura)
+        async function cargarEventos() {
+            const container = document.getElementById('listaEventos');
+            try {
+                const res = await fetch(`http://localhost:${PORTS.eventos}/eventos`);
+                const data = await res.json();
+                if (res.ok && data.eventos.length > 0) {
+                    container.innerHTML = "";
+                    data.eventos.forEach(ev => {
+                        container.innerHTML += `
+                            <div class="p-5 border rounded-2xl bg-slate-50 flex flex-col justify-between">
+                                <div>
+                                    <h4 class="font-bold text-slate-800 text-lg mb-1">${ev.titulo}</h4>
+                                    <p class="text-sm text-slate-500 mb-3"><i class="fa-solid fa-calendar text-teal-500 mr-2"></i>${ev.fecha}</p>
+                                    <p class="text-sm text-slate-600">${ev.descripcion}</p>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    container.innerHTML = `<p class="col-span-full text-center py-6 text-slate-400">No hay eventos programados en este momento.</p>`;
+                }
+            } catch (e) {
+                container.innerHTML = `<p class="col-span-full text-center py-6 text-red-500">Servicio de Eventos inactivo.</p>`;
+            }
+        }
+
+        // 🔔 5. Notificaciones (Simulado)
+        async function cargarNotificaciones() {
+            const container = document.getElementById('listaNotificaciones');
+            try {
+                const res = await fetch(`http://localhost:${PORTS.notificaciones}/notificaciones`);
+                const data = await res.json();
+                if (res.ok && data.notificaciones.length > 0) {
+                    container.innerHTML = "";
+                    data.notificaciones.forEach(notif => {
+                        container.innerHTML += `
+                            <div class="p-4 border-l-4 border-teal-500 bg-teal-50/50 rounded-r-xl flex items-start gap-3">
+                                <i class="fa-solid fa-envelope-open-text text-teal-600 mt-1"></i>
+                                <div>
+                                    <p class="text-sm font-semibold text-slate-800">${notif.mensaje}</p>
+                                    <span class="text-xs text-slate-400">${notif.fecha || 'Hoy'}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    container.innerHTML = `<p class="text-center py-6 text-slate-400">Tu bandeja de entrada está vacía.</p>`;
+                }
+            } catch (e) {
+                container.innerHTML = `<p class="text-center py-6 text-red-500">Servicio de Notificaciones inactivo.</p>`;
+            }
+        }
+
+        // 👤 6. Registro de Usuarios
         document.getElementById('formUsuario').addEventListener('submit', async (e) => {
             e.preventDefault();
             const payload = {
@@ -188,123 +583,26 @@
             };
 
             try {
-                const response = await fetch(URL_USUARIOS, {
+                const res = await fetch(`http://localhost:${PORTS.usuarios}/registro`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                const data = await response.json();
-                
-                if (response.ok) {
-                    mostrarAlerta(`¡Usuario "${data.usuario.nombre}" guardado con éxito en Railway! ID: ${data.usuario.id}`);
+                if (res.ok) {
+                    showNotification("🎉 ¡Registro de usuario completado! Ya puedes loguearte.");
                     document.getElementById('formUsuario').reset();
                 } else {
-                    mostrarAlerta(`Error: ${data.error}`, true);
+                    showNotification("El correo ya se encuentra registrado.", true);
                 }
             } catch (err) {
-                mostrarAlerta("No se pudo conectar al Microservicio de Usuarios (¿Está encendido el puerto 48910?)", true);
+                showNotification("Fallo al conectar con Usuarios.", true);
             }
         });
 
-        // 2. Guardar Mascota
-        document.getElementById('formMascota').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const payload = {
-                nombre: document.getElementById('petNombre').value,
-                especie: document.getElementById('petEspecie').value,
-                raza: document.getElementById('petRaza').value,
-                edad_meses: document.getElementById('petEdad').value,
-                tamaño: document.getElementById('petTamano').value,
-                descripcion: document.getElementById('petDesc').value
-            };
-
-            try {
-                const response = await fetch(URL_MASCOTAS, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await response.json();
-
-                if (response.ok) {
-                    mostrarAlerta(`🐾 ¡Mascota "${data.mascota.nombre}" guardada con éxito!`);
-                    document.getElementById('formMascota').reset();
-                    cargarMascotas(); // Recargar tabla automáticamente
-                } else {
-                    mostrarAlerta(`Error: ${data.error}`, true);
-                }
-            } catch (err) {
-                mostrarAlerta("No se pudo conectar al Microservicio de Mascotas (¿Está encendido el puerto 48914?)", true);
-            }
-        });
-
-        // 3. Registrar Donación
-        document.getElementById('formDonacion').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const userId = document.getElementById('donUserId').value;
-            const payload = {
-                monto: parseFloat(document.getElementById('donMonto').value),
-                id_usuario: userId ? parseInt(userId) : null,
-                comentario: document.getElementById('donComentario').value
-            };
-
-            try {
-                const response = await fetch(URL_DONACIONES, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await response.json();
-
-                if (response.ok) {
-                    mostrarAlerta("💰 ¡Donación registrada con éxito! Gracias por tu apoyo.");
-                    document.getElementById('formDonacion').reset();
-                } else {
-                    mostrarAlerta(`Error: ${data.error}`, true);
-                }
-            } catch (err) {
-                mostrarAlerta("No se pudo conectar al Microservicio de Donaciones (¿Está encendido el puerto 48912?)", true);
-            }
-        });
-
-        // 4. Obtener Mascotas Guardadas (GET)
-        async function cargarMascotas() {
-            const tbody = document.getElementById('tablaMascotas');
-            tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-blue-500">Cargando datos de Railway...</td></tr>`;
-
-            try {
-                const response = await fetch(URL_MASCOTAS);
-                const data = await response.json();
-
-                if (response.ok && data.mascotas.length > 0) {
-                    tbody.innerHTML = "";
-                    data.mascotas.forEach(mascota => {
-                        tbody.innerHTML += `
-                            <tr class="hover:bg-gray-50 transition-colors">
-                                <td class="py-3.5 px-4 font-semibold text-gray-500">#${mascota.id_mascota}</td>
-                                <td class="py-3.5 px-4 font-bold text-gray-800">${mascota.nombre}</td>
-                                <td class="py-3.5 px-4">${mascota.especie} (${mascota.raza})</td>
-                                <td class="py-3.5 px-4">${mascota.edad_meses} meses</td>
-                                <td class="py-3.5 px-4">${mascota.tamaño}</td>
-                                <td class="py-3.5 px-4">
-                                    <span class="px-2 py-1 text-xs font-bold rounded-full ${
-                                        mascota.estado === 'Disponible' 
-                                            ? 'bg-green-100 text-green-700' 
-                                            : 'bg-gray-100 text-gray-600'
-                                    }">
-                                        ${mascota.estado}
-                                    </span>
-                                </td>
-                            </tr>
-                        `;
-                    });
-                } else {
-                    tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-gray-400">No hay mascotas registradas aún. ¡Agrega la primera arriba!</td></tr>`;
-                }
-            } catch (err) {
-                tbody.innerHTML = `<tr><td colspan="6" class="py-6 text-center text-red-500 font-semibold">Error al conectar con el microservicio de mascotas.</td></tr>`;
-            }
-        }
+        // Arranque Inicial por defecto
+        window.onload = () => {
+            cargarCatalogoMascotas();
+        };
     </script>
 </body>
 </html>
