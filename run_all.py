@@ -5,7 +5,7 @@ import os
 
 # Lista de los microservicios, sus carpetas y sus puertos correspondientes
 MICROSERVICES = [
-    {"name": "Usuarios", "dir": "Usuarios", "port": 48910},
+    {"name": "Usuarios", "dir": "db_usuarios", "port": 48910},
     {"name": "Adopciones", "dir": "db_adopciones", "port": 48911},
     {"name": "Donaciones", "dir": "db_donaciones", "port": 48912},
     {"name": "Eventos", "dir": "db_eventos", "port": 48913},
