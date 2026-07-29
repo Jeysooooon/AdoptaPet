@@ -46,6 +46,24 @@ class Mascota(db.Model):
             'foto_url': self.foto_url,
             'fecha_registro': self.fecha_registro.isoformat() if self.fecha_registro else None
         }
+    class Foto(db.Model):
+    __tablename__ = 'fotos'
+    id_foto = db.Column(db.Integer, primary_key=True)
+    id_mascota = db.Column(db.Integer, db.ForeignKey('mascotas.id_mascota', ondelete='CASCADE'), nullable=False)
+    url = db.Column(db.String(500), nullable=False)
+    es_principal = db.Column(db.Boolean, default=False, nullable=False)
+    fecha_subida = db.Column(db.DateTime, default=datetime.utcnow)
+
+    mascota = db.relationship('Mascota', backref=db.backref('fotos', lazy=True, cascade='all, delete-orphan'))
+
+    def to_dict(self):
+        return {
+            'id_foto': self.id_foto,
+            'id_mascota': self.id_mascota,
+            'url': self.url,
+            'es_principal': self.es_principal,
+            'fecha_subida': self.fecha_subida.isoformat() if self.fecha_subida else None
+        }
 
 @app.route('/', methods=['GET'])
 def home():
@@ -147,7 +165,56 @@ def eliminar_mascota(id):
     except Exception as e:
         db.session.rollback()
         return jsonify(error=f"Error al eliminar mascota: {str(e)}"), 500
+# ==================== ENDPOINTS DE FOTOS (relación 1:N con Mascota) ====================
 
+# POST - Agregar una foto a una mascota
+@app.route('/mascotas/<int:id_mascota>/fotos', methods=['POST'])
+def agregar_foto(id_mascota):
+    mascota = Mascota.query.get(id_mascota)
+    if not mascota:
+        return jsonify(error="Mascota no encontrada."), 404
+
+    data = request.get_json() or {}
+    url = data.get('url')
+    if not url:
+        return jsonify(error="La URL de la foto es obligatoria."), 400
+
+    try:
+        nueva_foto = Foto(
+            id_mascota=id_mascota,
+            url=url,
+            es_principal=data.get('es_principal', False)
+        )
+        db.session.add(nueva_foto)
+        db.session.commit()
+        return jsonify(message="Foto agregada exitosamente.", foto=nueva_foto.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(error=f"Error al agregar foto: {str(e)}"), 500
+
+# GET - Listar las fotos de una mascota
+@app.route('/mascotas/<int:id_mascota>/fotos', methods=['GET'])
+def listar_fotos(id_mascota):
+    mascota = Mascota.query.get(id_mascota)
+    if not mascota:
+        return jsonify(error="Mascota no encontrada."), 404
+    fotos = Foto.query.filter_by(id_mascota=id_mascota).all()
+    return jsonify(fotos=[f.to_dict() for f in fotos]), 200
+
+# DELETE - Eliminar una foto puntual
+@app.route('/fotos/<int:id_foto>', methods=['DELETE'])
+def eliminar_foto(id_foto):
+    foto = Foto.query.get(id_foto)
+    if not foto:
+        return jsonify(error="Foto no encontrada."), 404
+    try:
+        db.session.delete(foto)
+        db.session.commit()
+        return jsonify(message="Foto eliminada exitosamente."), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(error=f"Error al eliminar foto: {str(e)}"), 500
+    
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()  # Crea la tabla automáticamente en Railway
