@@ -1,4 +1,5 @@
 import os
+import re
 from flask import Flask, request, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS  # <-- 1. Importamos CORS
@@ -47,31 +48,6 @@ class Usuario(db.Model):
             'correo': self.correo,
             'rol': self.rol,
         }
-
-@app.route('/registro', methods=['POST'])
-def registro():
-    data = request.get_json() or {}
-    nombre = data.get('nombre')
-    correo = data.get('correo')
-    password = data.get('password')
-
-    if not nombre or not correo or not password:
-        return jsonify(error='Nombre, correo y contraseña son obligatorios.'), 400
-
-    try:
-        if Usuario.query.filter_by(correo=correo).first():
-            return jsonify(error='El correo ya está registrado.'), 409
-
-        usuario = Usuario(nombre=nombre, correo=correo)
-        usuario.password = password
-        db.session.add(usuario)
-        db.session.commit()
-
-        return jsonify(message='Usuario creado exitosamente.', usuario=usuario.to_dict()), 201
-    except Exception:
-        db.session.rollback()
-        return jsonify(error='Error al crear el usuario.'), 500
-import re  # <-- nuevo import, junto a los de arriba del archivo
 
 PASSWORD_MIN_LENGTH = 8
 
