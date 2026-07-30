@@ -1,0 +1,61 @@
+{
+  "id": "adoptapet-env-v1",
+  "name": "AdoptaPet - Local Environment",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:5000",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "admin_email",
+      "value": "admin@adoptapet.hn",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "admin_password",
+      "value": "Admin123*",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "adoptante_email",
+      "value": "adoptante@gmail.com",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "adoptante_password",
+      "value": "User123*",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "adoptante_token",
+      "value": "",
+      "type": "secret",
+      "enabled": true
+    },
+    {
+      "key": "mascota_id",
+      "value": "1",
+      "type": "default",
+      "enabled": true
+    },
+    {
+      "key": "solicitud_id",
+      "value": "1",
+      "type": "default",
+      "enabled": true
+    }
+  ],
+  "_postman_variable_scope": "environment"
+}
