@@ -1,0 +1,773 @@
+openapi: 3.0.3
+info:
+  title: AdoptaPet API
+  version: 1.0.0
+  description: >-
+    Especificación OpenAPI 3.0 para los Sprints 2 y 3 de AdoptaPet,
+    incluyendo autenticación, gestión de usuarios, catálogo de mascotas y
+    solicitudes de adopción.
+servers:
+  - url: http://localhost:5000
+    description: Entorno local de desarrollo
+  - url: https://adoptapet-production.up.railway.app
+    description: Entorno de despliegue en Railway
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+    description: Registro, login y recuperación de contraseña
+  - name: Usuarios
+    description: Perfil de usuario y administración de usuarios
+  - name: Mascotas
+    description: Catálogo y gestión de mascotas
+  - name: Solicitudes
+    description: Solicitudes de adopción y aprobación/rechazo
+paths:
+  /api/v1/auth/register:
+    post:
+      tags:
+        - Auth
+      summary: Registrar un nuevo usuario
+      description: Crea una cuenta nueva para un usuario estándar.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Usuario creado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Datos inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: El correo ya está registrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Auth
+      summary: Iniciar sesión
+      description: Autentica a un usuario y devuelve un token JWT.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Inicio de sesión exitoso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/auth/forgot-password:
+    post:
+      tags:
+        - Auth
+      summary: Recuperar contraseña
+      description: Envía un enlace o token temporal para restablecer la contraseña.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: Solicitud procesada correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Formato de correo inválido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/users/profile:
+    get:
+      tags:
+        - Usuarios
+      summary: Obtener perfil del usuario autenticado
+      description: Devuelve la información del perfil del usuario logueado.
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Perfil encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - Usuarios
+      summary: Actualizar perfil del usuario autenticado
+      description: Permite editar los datos personales del usuario autenticado.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Perfil actualizado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Usuario'
+        '400':
+          description: Datos inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/users:
+    get:
+      tags:
+        - Usuarios
+      summary: Listado general de usuarios
+      description: Lista usuarios registrados. Solo accesible para administradores.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de usuarios
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UsersListResponse'
+        '403':
+          description: No autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/mascotas:
+    get:
+      tags:
+        - Mascotas
+      summary: Obtener catálogo de mascotas
+      description: Devuelve mascotas disponibles o filtradas por búsqueda y criterios.
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: tipo
+          schema:
+            type: string
+            enum: [perro, gato, otro]
+        - in: query
+          name: estado
+          schema:
+            type: string
+            enum: [disponible, pendiente, adoptada, inactiva]
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Catálogo consultado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MascotasListResponse'
+    post:
+      tags:
+        - Mascotas
+      summary: Registrar una nueva mascota
+      description: Crea una mascota en el catálogo. Solo accesible por administradores.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateMascotaRequest'
+      responses:
+        '201':
+          description: Mascota creada correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mascota'
+        '400':
+          description: Datos inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Sin permisos para crear mascotas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/mascotas/{id}:
+    get:
+      tags:
+        - Mascotas
+      summary: Obtener detalle de una mascota
+      description: Devuelve la información detallada de una mascota por su identificador.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Mascota encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mascota'
+        '404':
+          description: Mascota no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - Mascotas
+      summary: Editar una mascota
+      description: Actualiza la información de una mascota. Solo administradores.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMascotaRequest'
+      responses:
+        '200':
+          description: Mascota actualizada correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Mascota'
+        '403':
+          description: Sin permisos para editar mascotas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Mascota no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Mascotas
+      summary: Eliminar una mascota
+      description: Elimina una mascota del catálogo. Solo administradores.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Mascota eliminada correctamente
+        '403':
+          description: Sin permisos para eliminar mascotas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Mascota no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/solicitudes:
+    post:
+      tags:
+        - Solicitudes
+      summary: Enviar solicitud de adopción
+      description: Crea una solicitud de adopción para una mascota disponible.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSolicitudRequest'
+      responses:
+        '201':
+          description: Solicitud creada correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolicitudAdopcion'
+        '400':
+          description: Datos inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Mascota no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/solicitudes/{id}/estado:
+    put:
+      tags:
+        - Solicitudes
+      summary: Aprobar o rechazar una solicitud
+      description: Cambia el estado de una solicitud. Solo accesible para administradores.
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSolicitudEstadoRequest'
+      responses:
+        '200':
+          description: Estado actualizado correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolicitudAdopcion'
+        '403':
+          description: Sin permisos para cambiar el estado de la solicitud
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Solicitud no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Usuario:
+      type: object
+      required:
+        - id
+        - nombre
+        - apellido
+        - email
+        - rol
+        - estado
+      properties:
+        id:
+          type: integer
+          example: 1
+        nombre:
+          type: string
+          example: Ana
+        apellido:
+          type: string
+          example: Pérez
+        email:
+          type: string
+          format: email
+          example: ana@example.com
+        telefono:
+          type: string
+          nullable: true
+          example: '5551234567'
+        rol:
+          type: string
+          enum: [admin, usuario, refugio]
+          example: usuario
+        estado:
+          type: string
+          enum: [activo, inactivo, pendiente]
+          example: activo
+        fecha_registro:
+          type: string
+          format: date-time
+          example: '2026-07-29T10:00:00Z'
+
+    Mascota:
+      type: object
+      required:
+        - id
+        - nombre
+        - tipo
+        - estado
+      properties:
+        id:
+          type: integer
+          example: 10
+        nombre:
+          type: string
+          example: Max
+        tipo:
+          type: string
+          enum: [perro, gato, otro]
+          example: perro
+        raza:
+          type: string
+          nullable: true
+          example: Labrador
+        edad:
+          type: integer
+          nullable: true
+          example: 3
+        genero:
+          type: string
+          enum: [macho, hembra, otro]
+          nullable: true
+        tamano:
+          type: string
+          enum: [pequeno, mediano, grande]
+          nullable: true
+        descripcion:
+          type: string
+          nullable: true
+          example: Muy juguetón
+        estado:
+          type: string
+          enum: [disponible, pendiente, adoptada, inactiva]
+          example: disponible
+        fecha_ingreso:
+          type: string
+          format: date
+          example: '2026-07-28'
+        foto_url:
+          type: string
+          nullable: true
+          example: https://example.com/mascota.jpg
+
+    SolicitudAdopcion:
+      type: object
+      required:
+        - id
+        - mascota_id
+        - usuario_id
+        - estado
+      properties:
+        id:
+          type: integer
+          example: 1
+        mascota_id:
+          type: integer
+          example: 10
+        usuario_id:
+          type: integer
+          example: 2
+        mensaje:
+          type: string
+          example: Estoy interesado en adoptar a Max.
+        estado:
+          type: string
+          enum: [pendiente, aprobada, rechazada, cancelada]
+          example: pendiente
+        fecha_solicitud:
+          type: string
+          format: date-time
+          example: '2026-07-29T10:15:00Z'
+        fecha_respuesta:
+          type: string
+          format: date-time
+          nullable: true
+        respuesta_admin:
+          type: string
+          nullable: true
+
+    RegisterRequest:
+      type: object
+      required:
+        - nombre
+        - apellido
+        - email
+        - password
+      properties:
+        nombre:
+          type: string
+          example: Ana
+        apellido:
+          type: string
+          example: Pérez
+        email:
+          type: string
+          format: email
+          example: ana@example.com
+        password:
+          type: string
+          format: password
+          example: Password123!
+        telefono:
+          type: string
+          example: '5551234567'
+        rol:
+          type: string
+          enum: [usuario, refugio, admin]
+          default: usuario
+
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    ForgotPasswordRequest:
+      type: object
+      required:
+        - email
+      properties:
+        email:
+          type: string
+          format: email
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        nombre:
+          type: string
+        apellido:
+          type: string
+        telefono:
+          type: string
+
+    CreateMascotaRequest:
+      type: object
+      required:
+        - nombre
+        - tipo
+        - estado
+      properties:
+        nombre:
+          type: string
+        tipo:
+          type: string
+          enum: [perro, gato, otro]
+        raza:
+          type: string
+        edad:
+          type: integer
+        genero:
+          type: string
+          enum: [macho, hembra, otro]
+        tamano:
+          type: string
+          enum: [pequeno, mediano, grande]
+        descripcion:
+          type: string
+        estado:
+          type: string
+          enum: [disponible, pendiente, adoptada, inactiva]
+        fecha_ingreso:
+          type: string
+          format: date
+        foto_url:
+          type: string
+
+    UpdateMascotaRequest:
+      type: object
+      properties:
+        nombre:
+          type: string
+        descripcion:
+          type: string
+        estado:
+          type: string
+          enum: [disponible, pendiente, adoptada, inactiva]
+        foto_url:
+          type: string
+
+    CreateSolicitudRequest:
+      type: object
+      required:
+        - mascota_id
+        - mensaje
+      properties:
+        mascota_id:
+          type: integer
+        mensaje:
+          type: string
+
+    UpdateSolicitudEstadoRequest:
+      type: object
+      required:
+        - estado
+      properties:
+        estado:
+          type: string
+          enum: [aprobada, rechazada]
+        respuesta_admin:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Autenticación exitosa
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        user:
+          $ref: '#/components/schemas/Usuario'
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Operación realizada correctamente
+
+    ErrorResponse:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          example: bad_request
+        message:
+          type: string
+          example: Los datos enviados son inválidos
+        details:
+          type: array
+          items:
+            type: string
+        timestamp:
+          type: string
+          format: date-time
+          example: '2026-07-29T10:00:00Z'
+
+    UsersListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Usuario'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
+
+    MascotasListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Mascota'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            limit:
+              type: integer
+            total:
+              type: integer
