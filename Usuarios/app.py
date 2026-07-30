@@ -71,6 +71,71 @@ def registro():
     except Exception:
         db.session.rollback()
         return jsonify(error='Error al crear el usuario.'), 500
+import re  # <-- nuevo import, junto a los de arriba del archivo
+
+PASSWORD_MIN_LENGTH = 8
+
+
+def validar_formato_correo(correo):
+    """Valida que el correo tenga una forma básica válida (algo@algo.algo)."""
+    patron = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
+    return re.match(patron, correo) is not None
+
+
+def validar_password_segura(password):
+    """
+    Valida que la contraseña cumpla reglas mínimas de seguridad.
+    Devuelve una tupla (es_valida, mensaje_error).
+    """
+    if len(password) < PASSWORD_MIN_LENGTH:
+        return False, f'La contraseña debe tener al menos {PASSWORD_MIN_LENGTH} caracteres.'
+    if not re.search(r'[A-Z]', password):
+        return False, 'La contraseña debe incluir al menos una letra mayúscula.'
+    if not re.search(r'[a-z]', password):
+        return False, 'La contraseña debe incluir al menos una letra minúscula.'
+    if not re.search(r'[0-9]', password):
+        return False, 'La contraseña debe incluir al menos un número.'
+    return True, ''
+
+
+@app.route('/registro', methods=['POST'])
+def registro():
+    data = request.get_json() or {}
+    nombre = (data.get('nombre') or '').strip()
+    correo = (data.get('correo') or '').strip().lower()
+    password = data.get('password') or ''
+    confirmar_password = data.get('confirmar_password') or ''
+
+    # 1. Campos obligatorios
+    if not nombre or not correo or not password or not confirmar_password:
+        return jsonify(error='Nombre, correo, contraseña y confirmación de contraseña son obligatorios.'), 400
+
+    # 2. Formato de correo válido
+    if not validar_formato_correo(correo):
+        return jsonify(error='El formato del correo electrónico no es válido.'), 400
+
+    # 3. Confirmación de contraseña
+    if password != confirmar_password:
+        return jsonify(error='La contraseña y su confirmación no coinciden.'), 400
+
+    # 4. Contraseña segura
+    password_valida, mensaje_password = validar_password_segura(password)
+    if not password_valida:
+        return jsonify(error=mensaje_password), 400
+
+    try:
+        if Usuario.query.filter_by(correo=correo).first():
+            return jsonify(error='Ya existe una cuenta registrada con este correo electrónico.'), 409
+
+        usuario = Usuario(nombre=nombre, correo=correo)
+        usuario.password = password
+        db.session.add(usuario)
+        db.session.commit()
+
+        return jsonify(message='Usuario creado exitosamente.', usuario=usuario.to_dict()), 201
+    except Exception:
+        db.session.rollback()
+        return jsonify(error='Ocurrió un error inesperado al crear el usuario. Inténtalo nuevamente.'), 500
 
 @app.route('/login', methods=['POST'])
 def login():

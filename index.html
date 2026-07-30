@@ -205,6 +205,17 @@
                             <label class="block text-xs font-bold text-slate-500 mb-1">Contraseña</label>
                             <input type="password" id="userPassword" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
                         </div>
+
+                        <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Contraseña</label>
+                        <input type="password" id="userPassword" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                        </div>
+                        
+                        <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Confirmar Contraseña</label>
+                        <input type="password" id="userConfirmarPassword" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                        </div>
+
                         <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl transition-all">
                             Registrarse
                         </button>
@@ -575,29 +586,31 @@
 
         // 👤 6. Registro de Usuarios
         document.getElementById('formUsuario').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const payload = {
-                nombre: document.getElementById('userNombre').value,
-                correo: document.getElementById('userCorreo').value,
-                password: document.getElementById('userPassword').value
-            };
+    e.preventDefault();
+    const payload = {
+        nombre: document.getElementById('userNombre').value,
+        correo: document.getElementById('userCorreo').value,
+        password: document.getElementById('userPassword').value,
+        confirmar_password: document.getElementById('userConfirmarPassword').value
+    };
 
-            try {
-                const res = await fetch(`http://localhost:${PORTS.usuarios}/registro`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (res.ok) {
-                    showNotification("🎉 ¡Registro de usuario completado! Ya puedes loguearte.");
-                    document.getElementById('formUsuario').reset();
-                } else {
-                    showNotification("El correo ya se encuentra registrado.", true);
-                }
-            } catch (err) {
-                showNotification("Fallo al conectar con Usuarios.", true);
-            }
+    try {
+        const res = await fetch(`http://localhost:${PORTS.usuarios}/registro`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
         });
+        const resultado = await res.json();
+        if (res.ok) {
+            showNotification("🎉 ¡Registro de usuario completado! Ya puedes loguearte.");
+            document.getElementById('formUsuario').reset();
+        } else {
+            showNotification(resultado.error || "No se pudo completar el registro.", true);
+        }
+    } catch (err) {
+        showNotification("Fallo al conectar con Usuarios.", true);
+    }
+});
 
         // Arranque Inicial por defecto
         window.onload = () => {
@@ -605,4 +618,5 @@
         };
     </script>
 </body>
+
 </html>
