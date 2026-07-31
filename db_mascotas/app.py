@@ -46,7 +46,9 @@ class Mascota(db.Model):
             'foto_url': self.foto_url,
             'fecha_registro': self.fecha_registro.isoformat() if self.fecha_registro else None
         }
-    class Foto(db.Model):
+
+
+class Foto(db.Model):
     __tablename__ = 'fotos'
     id_foto = db.Column(db.Integer, primary_key=True)
     id_mascota = db.Column(db.Integer, db.ForeignKey('mascotas.id_mascota', ondelete='CASCADE'), nullable=False)
