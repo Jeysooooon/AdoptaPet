@@ -36,6 +36,7 @@ class Usuario(db.Model):
     correo = db.Column(db.String(255), unique=True, nullable=False)
     _password = db.Column('password', db.String(255), nullable=False)
     rol = db.Column(db.String(50), nullable=False, default='usuario')
+    activo = db.Column(db.Boolean, nullable=False, default=True)
 
     # Datos de perfil
     foto = db.Column(db.String(500), nullable=True)
@@ -79,6 +80,7 @@ class Usuario(db.Model):
             'username': self.username,
             'correo': self.correo,
             'rol': self.rol,
+            'activo': self.activo,
             'foto': self.foto,
             'fecha_registro': self.fecha_registro.isoformat() if self.fecha_registro else None,
         }
@@ -88,6 +90,7 @@ PASSWORD_MIN_LENGTH = 8
 USERNAME_MIN_LENGTH = 3
 USERNAME_MAX_LENGTH = 30
 FOTO_MAX_LENGTH = 500
+ROLES_VALIDOS = ('usuario', 'admin')
 
 
 def validar_formato_correo(correo):
@@ -200,6 +203,10 @@ def login():
 
         if not usuario:
             return jsonify(error='Credenciales inválidas.'), 401
+
+        # Cuenta desactivada por un administrador
+        if not usuario.activo:
+            return jsonify(error='Esta cuenta ha sido desactivada. Contacta a un administrador.'), 403
 
         # Verificar si la cuenta está bloqueada por intentos fallidos
         if usuario.esta_bloqueado():
@@ -324,11 +331,97 @@ def listar_usuarios():
         if current_user_role != 'admin':
             return jsonify(error='Acceso denegado. Requiere rol admin.'), 403
 
-        usuarios = Usuario.query.all()
+        query = Usuario.query
+
+        # Búsqueda por nombre, username o correo (parcial, insensible a mayúsculas)
+        buscar = request.args.get('buscar', '').strip()
+        if buscar:
+            like = f'%{buscar}%'
+            query = query.filter(
+                db.or_(
+                    Usuario.nombre.ilike(like),
+                    Usuario.username.ilike(like),
+                    Usuario.correo.ilike(like),
+                )
+            )
+
+        # Filtro por rol
+        rol = request.args.get('rol', '').strip()
+        if rol:
+            if rol not in ROLES_VALIDOS:
+                return jsonify(error=f"Rol inválido. Debe ser uno de: {', '.join(ROLES_VALIDOS)}."), 400
+            query = query.filter(Usuario.rol == rol)
+
+        # Filtro por estado (activo/inactivo)
+        activo_param = request.args.get('activo')
+        if activo_param is not None:
+            if activo_param.lower() not in ('true', 'false'):
+                return jsonify(error="El parámetro 'activo' debe ser 'true' o 'false'."), 400
+            query = query.filter(Usuario.activo == (activo_param.lower() == 'true'))
+
+        usuarios = query.order_by(Usuario.id).all()
         usuarios_list = [u.to_dict() for u in usuarios]
-        return jsonify(usuarios=usuarios_list), 200
+        return jsonify(usuarios=usuarios_list, total=len(usuarios_list)), 200
     except Exception:
         return jsonify(error='Error al obtener usuarios.'), 500
+
+
+@app.route('/usuarios/<int:id>/rol', methods=['PUT'])
+def cambiar_rol(id):
+    if session.get('user_role') != 'admin':
+        return jsonify(error='Acceso denegado. Requiere rol admin.'), 403
+
+    data = request.get_json() or {}
+    nuevo_rol = (data.get('rol') or '').strip()
+
+    if nuevo_rol not in ROLES_VALIDOS:
+        return jsonify(error=f"Rol inválido. Debe ser uno de: {', '.join(ROLES_VALIDOS)}."), 400
+
+    try:
+        usuario = Usuario.query.get(id)
+        if not usuario:
+            return jsonify(error='Usuario no encontrado.'), 404
+
+        # Un admin no puede quitarse su propio rol de admin (evita quedarse sin administradores)
+        if usuario.id == session.get('user_id') and nuevo_rol != 'admin':
+            return jsonify(error='No puedes quitarte a ti mismo el rol de administrador.'), 400
+
+        usuario.rol = nuevo_rol
+        db.session.commit()
+        return jsonify(message='Rol actualizado.', usuario=usuario.to_dict()), 200
+    except Exception:
+        db.session.rollback()
+        return jsonify(error='Error al actualizar el rol.'), 500
+
+
+@app.route('/usuarios/<int:id>/estado', methods=['PUT'])
+def cambiar_estado(id):
+    if session.get('user_role') != 'admin':
+        return jsonify(error='Acceso denegado. Requiere rol admin.'), 403
+
+    data = request.get_json() or {}
+    if 'activo' not in data or not isinstance(data.get('activo'), bool):
+        return jsonify(error="El campo 'activo' es obligatorio y debe ser true o false."), 400
+
+    nuevo_estado = data['activo']
+
+    try:
+        usuario = Usuario.query.get(id)
+        if not usuario:
+            return jsonify(error='Usuario no encontrado.'), 404
+
+        # Un admin no puede desactivarse a sí mismo (evita quedarse fuera del sistema)
+        if usuario.id == session.get('user_id') and not nuevo_estado:
+            return jsonify(error='No puedes desactivar tu propia cuenta.'), 400
+
+        usuario.activo = nuevo_estado
+        db.session.commit()
+
+        mensaje = 'Usuario activado.' if nuevo_estado else 'Usuario desactivado.'
+        return jsonify(message=mensaje, usuario=usuario.to_dict()), 200
+    except Exception:
+        db.session.rollback()
+        return jsonify(error='Error al actualizar el estado del usuario.'), 500
 
 
 @app.route('/recuperar-password', methods=['POST'])
