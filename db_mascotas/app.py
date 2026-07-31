@@ -51,12 +51,12 @@ class Mascota(db.Model):
 class Foto(db.Model):
     __tablename__ = 'fotos'
     id_foto = db.Column(db.Integer, primary_key=True)
-    id_mascota = db.Column(db.Integer, db.ForeignKey('mascotas.id_mascota', ondelete='CASCADE'), nullable=False)
+    # Sin db.ForeignKey: la tabla 'mascotas' no permite crear constraints de FK
+    # (motor/permisos del proveedor). La integridad se valida en el código (ver rutas).
+    id_mascota = db.Column(db.Integer, nullable=False)
     url = db.Column(db.String(500), nullable=False)
     es_principal = db.Column(db.Boolean, default=False, nullable=False)
     fecha_subida = db.Column(db.DateTime, default=datetime.utcnow)
-
-    mascota = db.relationship('Mascota', backref=db.backref('fotos', lazy=True, cascade='all, delete-orphan'))
 
     def to_dict(self):
         return {
@@ -161,6 +161,8 @@ def eliminar_mascota(id):
     if not mascota:
         return jsonify(error="Mascota no encontrada."), 404
     try:
+        # Limpieza manual: sin FK en la BD, hay que borrar las fotos asociadas a mano
+        Foto.query.filter_by(id_mascota=id).delete()
         db.session.delete(mascota)
         db.session.commit()
         return jsonify(message="Mascota eliminada exitosamente."), 200
