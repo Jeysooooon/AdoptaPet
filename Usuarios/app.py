@@ -1,9 +1,13 @@
 import os
 import re
+import secrets
+import hashlib
 from datetime import datetime, timedelta
+from functools import wraps
 from flask import Flask, request, jsonify, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS  # <-- 1. Importamos CORS
+from flask_mail import Mail, Message
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -19,6 +23,24 @@ if database_url:
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Configuración de cookies de sesión (mitiga CSRF y robo de sesión vía XSS)
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = os.getenv('FLASK_ENV') == 'production'
+
+# --- Configuración de envío de correo (recuperación de contraseña) ---
+app.config['MAIL_SERVER'] = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+app.config['MAIL_PORT'] = int(os.getenv('MAIL_PORT', 587))
+app.config['MAIL_USE_TLS'] = os.getenv('MAIL_USE_TLS', 'true').lower() == 'true'
+app.config['MAIL_USERNAME'] = os.getenv('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.getenv('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = os.getenv('MAIL_DEFAULT_SENDER', app.config['MAIL_USERNAME'])
+
+mail = Mail(app)
+
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5500')
+RESET_TOKEN_MINUTOS = 30
 
 db = SQLAlchemy(app)
 
@@ -45,6 +67,10 @@ class Usuario(db.Model):
     # Control de intentos fallidos y bloqueo temporal
     intentos_fallidos = db.Column(db.Integer, nullable=False, default=0)
     bloqueado_hasta = db.Column(db.DateTime, nullable=True)
+
+    # Recuperación de contraseña
+    token_recuperacion = db.Column(db.String(128), nullable=True)  # hash del token, nunca el token en claro
+    token_expira = db.Column(db.DateTime, nullable=True)
 
     @property
     def password(self):
@@ -93,6 +119,30 @@ FOTO_MAX_LENGTH = 500
 ROLES_VALIDOS = ('usuario', 'admin')
 
 
+def requiere_login(f):
+    """Exige que exista una sesión activa (usuario autenticado)."""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if not session.get('user_id'):
+            return jsonify(error='Debes iniciar sesión para acceder a este recurso.'), 401
+        return f(*args, **kwargs)
+    return wrapper
+
+
+def requiere_rol(*roles_permitidos):
+    """Exige sesión activa Y que el rol del usuario esté en roles_permitidos."""
+    def decorador(f):
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            if not session.get('user_id'):
+                return jsonify(error='Debes iniciar sesión para acceder a este recurso.'), 401
+            if session.get('user_role') not in roles_permitidos:
+                return jsonify(error='Acceso denegado. No tienes permisos suficientes.'), 403
+            return f(*args, **kwargs)
+        return wrapper
+    return decorador
+
+
 def validar_formato_correo(correo):
     """Valida que el correo tenga una forma básica válida (algo@algo.algo)."""
     patron = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
@@ -136,6 +186,11 @@ def validar_url_foto(foto):
     if not re.match(r'^https?://', foto):
         return False, 'La foto debe ser una URL válida que comience con http:// o https://.'
     return True, ''
+
+
+def generar_hash_token(token_plano):
+    """Convierte el token en un hash SHA-256 para guardarlo de forma segura en la BD."""
+    return hashlib.sha256(token_plano.encode('utf-8')).hexdigest()
 
 
 @app.route('/registro', methods=['POST'])
@@ -263,6 +318,7 @@ def obtener_perfil(id):
 
 
 @app.route('/perfil/<int:id>', methods=['PUT'])
+@requiere_login
 def actualizar_perfil(id):
     data = request.get_json() or {}
     nombre = data.get('nombre')
@@ -305,6 +361,7 @@ def actualizar_perfil(id):
 
 
 @app.route('/usuarios/<int:id>', methods=['DELETE'])
+@requiere_login
 def eliminar_usuario(id):
     try:
         usuario = Usuario.query.get(id)
@@ -325,12 +382,9 @@ def eliminar_usuario(id):
 
 
 @app.route('/usuarios', methods=['GET'])
+@requiere_rol('admin')
 def listar_usuarios():
     try:
-        current_user_role = session.get('user_role')
-        if current_user_role != 'admin':
-            return jsonify(error='Acceso denegado. Requiere rol admin.'), 403
-
         query = Usuario.query
 
         # Búsqueda por nombre, username o correo (parcial, insensible a mayúsculas)
@@ -367,10 +421,8 @@ def listar_usuarios():
 
 
 @app.route('/usuarios/<int:id>/rol', methods=['PUT'])
+@requiere_rol('admin')
 def cambiar_rol(id):
-    if session.get('user_role') != 'admin':
-        return jsonify(error='Acceso denegado. Requiere rol admin.'), 403
-
     data = request.get_json() or {}
     nuevo_rol = (data.get('rol') or '').strip()
 
@@ -395,10 +447,8 @@ def cambiar_rol(id):
 
 
 @app.route('/usuarios/<int:id>/estado', methods=['PUT'])
+@requiere_rol('admin')
 def cambiar_estado(id):
-    if session.get('user_role') != 'admin':
-        return jsonify(error='Acceso denegado. Requiere rol admin.'), 403
-
     data = request.get_json() or {}
     if 'activo' not in data or not isinstance(data.get('activo'), bool):
         return jsonify(error="El campo 'activo' es obligatorio y debe ser true o false."), 400
@@ -427,17 +477,78 @@ def cambiar_estado(id):
 @app.route('/recuperar-password', methods=['POST'])
 def recuperar_password():
     data = request.get_json() or {}
-    correo = data.get('correo')
+    correo = (data.get('correo') or '').strip().lower()
     if not correo:
         return jsonify(error='El correo es requerido.'), 400
+
     try:
         usuario = Usuario.query.filter_by(correo=correo).first()
+
         if usuario:
-            # Simular envío de correo: integrar servicio real en producción
-            pass
+            token_plano = secrets.token_urlsafe(32)
+            usuario.token_recuperacion = generar_hash_token(token_plano)
+            usuario.token_expira = datetime.utcnow() + timedelta(minutes=RESET_TOKEN_MINUTOS)
+            db.session.commit()
+
+            enlace = f'{FRONTEND_URL}/reset-password.html?token={token_plano}'
+            try:
+                mensaje = Message(
+                    subject='Recuperación de contraseña - AdoptaPet',
+                    recipients=[usuario.correo],
+                    body=(
+                        f'Hola {usuario.nombre},\n\n'
+                        'Recibimos una solicitud para restablecer tu contraseña.\n'
+                        f'Este enlace es válido por {RESET_TOKEN_MINUTOS} minutos:\n\n'
+                        f'{enlace}\n\n'
+                        'Si no solicitaste esto, ignora este correo.'
+                    ),
+                )
+                mail.send(mensaje)
+            except Exception as e:
+                # No revelamos el error de envío al cliente; solo queda en logs del servidor
+                app.logger.error(f'Error enviando correo de recuperación: {e}')
+
+        # Mismo mensaje exista o no el correo (evita revelar qué correos están registrados)
         return jsonify(message='Si el correo existe, se han enviado instrucciones para recuperar la contraseña.'), 200
     except Exception:
+        db.session.rollback()
         return jsonify(error='Error al procesar la solicitud.'), 500
+
+
+@app.route('/restablecer-password', methods=['POST'])
+def restablecer_password():
+    data = request.get_json() or {}
+    token = (data.get('token') or '').strip()
+    password = data.get('password') or ''
+    confirmar_password = data.get('confirmar_password') or ''
+
+    if not token or not password or not confirmar_password:
+        return jsonify(error='Token, contraseña y confirmación son obligatorios.'), 400
+
+    if password != confirmar_password:
+        return jsonify(error='La contraseña y su confirmación no coinciden.'), 400
+
+    password_valida, mensaje_password = validar_password_segura(password)
+    if not password_valida:
+        return jsonify(error=mensaje_password), 400
+
+    try:
+        token_hash = generar_hash_token(token)
+        usuario = Usuario.query.filter_by(token_recuperacion=token_hash).first()
+
+        if not usuario or not usuario.token_expira or usuario.token_expira < datetime.utcnow():
+            return jsonify(error='El enlace de recuperación es inválido o ha expirado.'), 400
+
+        usuario.password = password
+        usuario.token_recuperacion = None  # invalida el token: no se puede reusar
+        usuario.token_expira = None
+        usuario.reiniciar_intentos()  # el dueño demostró control del correo, se limpia cualquier bloqueo previo
+        db.session.commit()
+
+        return jsonify(message='Contraseña actualizada correctamente. Ya puedes iniciar sesión.'), 200
+    except Exception:
+        db.session.rollback()
+        return jsonify(error='Error al restablecer la contraseña.'), 500
 
 
 @app.route('/')
