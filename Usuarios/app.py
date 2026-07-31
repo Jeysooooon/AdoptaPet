@@ -37,6 +37,10 @@ class Usuario(db.Model):
     _password = db.Column('password', db.String(255), nullable=False)
     rol = db.Column(db.String(50), nullable=False, default='usuario')
 
+    # Datos de perfil
+    foto = db.Column(db.String(500), nullable=True)
+    fecha_registro = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
     # Control de intentos fallidos y bloqueo temporal
     intentos_fallidos = db.Column(db.Integer, nullable=False, default=0)
     bloqueado_hasta = db.Column(db.DateTime, nullable=True)
@@ -75,12 +79,15 @@ class Usuario(db.Model):
             'username': self.username,
             'correo': self.correo,
             'rol': self.rol,
+            'foto': self.foto,
+            'fecha_registro': self.fecha_registro.isoformat() if self.fecha_registro else None,
         }
 
 
 PASSWORD_MIN_LENGTH = 8
 USERNAME_MIN_LENGTH = 3
 USERNAME_MAX_LENGTH = 30
+FOTO_MAX_LENGTH = 500
 
 
 def validar_formato_correo(correo):
@@ -114,6 +121,17 @@ def validar_password_segura(password):
         return False, 'La contraseña debe incluir al menos una letra minúscula.'
     if not re.search(r'[0-9]', password):
         return False, 'La contraseña debe incluir al menos un número.'
+    return True, ''
+
+
+def validar_url_foto(foto):
+    """Valida que 'foto' sea una URL http(s) razonable, o vacía."""
+    if not foto:
+        return True, ''
+    if len(foto) > FOTO_MAX_LENGTH:
+        return False, f'La URL de la foto no puede superar los {FOTO_MAX_LENGTH} caracteres.'
+    if not re.match(r'^https?://', foto):
+        return False, 'La foto debe ser una URL válida que comience con http:// o https://.'
     return True, ''
 
 
@@ -242,7 +260,8 @@ def actualizar_perfil(id):
     data = request.get_json() or {}
     nombre = data.get('nombre')
     correo = data.get('correo')
-    password = data.get('password')  # <-- Añadido soporte para contraseña
+    password = data.get('password')
+    foto = data.get('foto')
 
     try:
         usuario = Usuario.query.get(id)
@@ -262,7 +281,13 @@ def actualizar_perfil(id):
         if nombre:
             usuario.nombre = nombre
 
-        if password:  # <-- Si se envía contraseña, se encripta automáticamente
+        if foto is not None:  # permite mandar "" para quitar la foto
+            foto_valida, mensaje_foto = validar_url_foto(foto)
+            if not foto_valida:
+                return jsonify(error=mensaje_foto), 400
+            usuario.foto = foto or None
+
+        if password:  # si se envía contraseña, se encripta automáticamente
             usuario.password = password
 
         db.session.commit()
