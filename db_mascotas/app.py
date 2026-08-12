@@ -33,8 +33,17 @@ class Mascota(db.Model):
     foto_url = db.Column(db.String(500), nullable=True)
     fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
 
-    def to_dict(self):
-        return {
+    # Relación N:M vía tabla intermedia 'mascota_caracteristica' (definida más abajo).
+    # Se referencia por nombre de string porque la tabla se declara después en el archivo.
+    caracteristicas = db.relationship(
+        'Caracteristica',
+        secondary='mascota_caracteristica',
+        backref=db.backref('mascotas', lazy='dynamic'),
+        lazy='dynamic',
+    )
+
+    def to_dict(self, incluir_caracteristicas=False):
+        data = {
             'id_mascota': self.id_mascota,
             'nombre': self.nombre,
             'especie': self.especie,
@@ -46,14 +55,18 @@ class Mascota(db.Model):
             'foto_url': self.foto_url,
             'fecha_registro': self.fecha_registro.isoformat() if self.fecha_registro else None
         }
+        if incluir_caracteristicas:
+            data['caracteristicas'] = [c.to_dict() for c in self.caracteristicas]
+        return data
 
 
 class Foto(db.Model):
     __tablename__ = 'fotos'
     id_foto = db.Column(db.Integer, primary_key=True)
-    # Sin db.ForeignKey: la tabla 'mascotas' no permite crear constraints de FK
-    # (motor/permisos del proveedor). La integridad se valida en el código (ver rutas).
-    id_mascota = db.Column(db.Integer, nullable=False)
+    # FK real: Foto y Mascota viven en la misma base de datos (db_mascotas),
+    # así que la relación 1:N se puede modelar con una constraint de verdad.
+    # ondelete='CASCADE' reemplaza el borrado manual de fotos que había en eliminar_mascota().
+    id_mascota = db.Column(db.Integer, db.ForeignKey('mascotas.id_mascota', ondelete='CASCADE'), nullable=False)
     url = db.Column(db.String(500), nullable=False)
     es_principal = db.Column(db.Boolean, default=False, nullable=False)
     fecha_subida = db.Column(db.DateTime, default=datetime.utcnow)
@@ -66,6 +79,23 @@ class Foto(db.Model):
             'es_principal': self.es_principal,
             'fecha_subida': self.fecha_subida.isoformat() if self.fecha_subida else None
         }
+
+class Caracteristica(db.Model):
+    __tablename__ = 'caracteristicas'
+    id_caracteristica = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(80), unique=True, nullable=False)
+
+    def to_dict(self):
+        return {'id_caracteristica': self.id_caracteristica, 'nombre': self.nombre}
+
+
+# Tabla intermedia de la relación N:M Mascota <-> Caracteristica.
+# No necesita su propio modelo de clase porque no tiene datos propios además de las FKs.
+mascota_caracteristica = db.Table(
+    'mascota_caracteristica',
+    db.Column('id_mascota', db.Integer, db.ForeignKey('mascotas.id_mascota', ondelete='CASCADE'), primary_key=True),
+    db.Column('id_caracteristica', db.Integer, db.ForeignKey('caracteristicas.id_caracteristica', ondelete='CASCADE'), primary_key=True),
+)
 
 @app.route('/', methods=['GET'])
 def home():
@@ -127,7 +157,8 @@ def obtener_mascota(id):
     mascota = Mascota.query.get(id)
     if not mascota:
         return jsonify(error="Mascota no encontrada."), 404
-    return jsonify(mascota.to_dict()), 200
+    incluir = request.args.get('incluir_caracteristicas', 'false').lower() == 'true'
+    return jsonify(mascota.to_dict(incluir_caracteristicas=incluir)), 200
 
 # PUT - Actualizar Mascota
 @app.route('/mascotas/<int:id>', methods=['PUT'])
@@ -161,7 +192,9 @@ def eliminar_mascota(id):
     if not mascota:
         return jsonify(error="Mascota no encontrada."), 404
     try:
-        # Limpieza manual: sin FK en la BD, hay que borrar las fotos asociadas a mano
+        # Respaldo defensivo: la FK de Foto ya tiene ON DELETE CASCADE, así que la BD
+        # borra las fotos automáticamente. Se deja esta línea por si el motor no
+        # tiene los foreign keys habilitados (p. ej. SQLite local sin el PRAGMA activado).
         Foto.query.filter_by(id_mascota=id).delete()
         db.session.delete(mascota)
         db.session.commit()
@@ -219,8 +252,92 @@ def eliminar_foto(id_foto):
         db.session.rollback()
         return jsonify(error=f"Error al eliminar foto: {str(e)}"), 500
     
+# ==================== ENDPOINTS DE CARACTERÍSTICAS (relación N:M con Mascota) ====================
+
+# GET - Catálogo de características disponibles
+@app.route('/caracteristicas', methods=['GET'])
+def listar_caracteristicas():
+    try:
+        caracteristicas = Caracteristica.query.order_by(Caracteristica.nombre).all()
+        return jsonify(caracteristicas=[c.to_dict() for c in caracteristicas]), 200
+    except Exception as e:
+        return jsonify(error=f"Error al obtener características: {str(e)}"), 500
+
+# POST - Crear una característica nueva en el catálogo
+@app.route('/caracteristicas', methods=['POST'])
+def crear_caracteristica():
+    data = request.get_json() or {}
+    nombre = (data.get('nombre') or '').strip()
+    if not nombre:
+        return jsonify(error="El nombre de la característica es obligatorio."), 400
+    try:
+        if Caracteristica.query.filter_by(nombre=nombre).first():
+            return jsonify(error="Esa característica ya existe."), 409
+        nueva = Caracteristica(nombre=nombre)
+        db.session.add(nueva)
+        db.session.commit()
+        return jsonify(message="Característica creada.", caracteristica=nueva.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(error=f"Error al crear característica: {str(e)}"), 500
+
+# GET - Listar las características asignadas a una mascota
+@app.route('/mascotas/<int:id_mascota>/caracteristicas', methods=['GET'])
+def listar_caracteristicas_de_mascota(id_mascota):
+    mascota = Mascota.query.get(id_mascota)
+    if not mascota:
+        return jsonify(error="Mascota no encontrada."), 404
+    return jsonify(caracteristicas=[c.to_dict() for c in mascota.caracteristicas]), 200
+
+# POST - Asignar una característica existente a una mascota
+@app.route('/mascotas/<int:id_mascota>/caracteristicas', methods=['POST'])
+def asignar_caracteristica(id_mascota):
+    mascota = Mascota.query.get(id_mascota)
+    if not mascota:
+        return jsonify(error="Mascota no encontrada."), 404
+
+    data = request.get_json() or {}
+    id_caracteristica = data.get('id_caracteristica')
+    if not id_caracteristica:
+        return jsonify(error="id_caracteristica es obligatorio."), 400
+
+    caracteristica = Caracteristica.query.get(id_caracteristica)
+    if not caracteristica:
+        return jsonify(error="Característica no encontrada."), 404
+
+    try:
+        if caracteristica in mascota.caracteristicas:
+            return jsonify(error="Esa característica ya está asignada a esta mascota."), 409
+        mascota.caracteristicas.append(caracteristica)
+        db.session.commit()
+        return jsonify(message="Característica asignada.", mascota=mascota.to_dict(incluir_caracteristicas=True)), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(error=f"Error al asignar característica: {str(e)}"), 500
+
+# DELETE - Quitar una característica de una mascota (no borra el catálogo, solo el vínculo)
+@app.route('/mascotas/<int:id_mascota>/caracteristicas/<int:id_caracteristica>', methods=['DELETE'])
+def quitar_caracteristica(id_mascota, id_caracteristica):
+    mascota = Mascota.query.get(id_mascota)
+    if not mascota:
+        return jsonify(error="Mascota no encontrada."), 404
+    caracteristica = Caracteristica.query.get(id_caracteristica)
+    if not caracteristica:
+        return jsonify(error="Característica no encontrada."), 404
+
+    try:
+        if caracteristica not in mascota.caracteristicas:
+            return jsonify(error="Esa mascota no tiene asignada esa característica."), 404
+        mascota.caracteristicas.remove(caracteristica)
+        db.session.commit()
+        return jsonify(message="Característica removida de la mascota."), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(error=f"Error al quitar característica: {str(e)}"), 500
+
+
 if __name__ == "__main__":
     with app.app_context():
-        db.create_all()  # Crea la tabla automáticamente en Railway
+        db.create_all()  # Crea las tablas automáticamente en Railway
     port = int(os.getenv("PORT", 48914))
     app.run(host="0.0.0.0", port=port, debug=True)
