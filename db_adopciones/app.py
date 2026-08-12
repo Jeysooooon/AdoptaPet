@@ -5,6 +5,7 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from dotenv import load_dotenv
+from auth_utils import auth_required
 
 load_dotenv()
 
@@ -50,9 +51,11 @@ def home():
 
 # POST - Crear Solicitud de Adopción
 @app.route('/adopciones', methods=['POST'])
-def crear_solicitud():
+@auth_required()
+def crear_solicitud(usuario_actual):
     data = request.get_json() or {}
-    id_usuario = data.get('id_usuario')
+    # Preferir el id del usuario autenticado; si no existe, usar el enviado (no recomendado)
+    id_usuario = usuario_actual.get('id') or data.get('id_usuario')
     id_mascota = data.get('id_mascota')
     motivo_adopcion = data.get('motivo_adopcion')
     
@@ -96,7 +99,8 @@ def listar_solicitudes():
 
 # PUT - Cambiar estado de la solicitud (Aprobar / Rechazar)
 @app.route('/adopciones/<int:id>', methods=['PUT'])
-def actualizar_solicitud(id):
+@auth_required('admin')
+def actualizar_solicitud(usuario_actual, id):
     solicitud = SolicitudAdopcion.query.get(id)
     if not solicitud:
         return jsonify(error="Solicitud no encontrada."), 404
@@ -136,10 +140,14 @@ def actualizar_solicitud(id):
 
 # DELETE - Cancelar/Eliminar solicitud
 @app.route('/adopciones/<int:id>', methods=['DELETE'])
-def eliminar_solicitud(id):
+@auth_required()
+def eliminar_solicitud(usuario_actual, id):
     solicitud = SolicitudAdopcion.query.get(id)
     if not solicitud:
         return jsonify(error="Solicitud no encontrada."), 404
+    # Solo el autor de la solicitud o un admin pueden eliminarla
+    if usuario_actual.get('rol') != 'admin' and usuario_actual.get('id') != solicitud.id_usuario:
+        return jsonify(error='No autorizado.'), 403
     try:
         db.session.delete(solicitud)
         db.session.commit()

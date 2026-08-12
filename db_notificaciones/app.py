@@ -4,6 +4,7 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from dotenv import load_dotenv
+from auth_utils import auth_required
 
 load_dotenv()
 
@@ -64,9 +65,13 @@ def crear_notificacion():
 
 # GET - Obtener notificaciones de un usuario
 @app.route('/notificaciones', methods=['GET'])
-def listar_notificaciones():
+@auth_required()
+def listar_notificaciones(usuario_actual):
     try:
+        # Si el usuario no es admin, solo puede listar sus propias notificaciones
         id_usuario = request.args.get('id_usuario')
+        if usuario_actual.get('rol') != 'admin':
+            id_usuario = usuario_actual.get('id')
         query = Notificacion.query
         if id_usuario:
             query = query.filter_by(id_usuario=int(id_usuario))
@@ -78,10 +83,14 @@ def listar_notificaciones():
 
 # PUT - Marcar notificación como leída
 @app.route('/notificaciones/<int:id>/leer', methods=['PUT'])
-def marcar_como_leida(id):
+@auth_required()
+def marcar_como_leida(usuario_actual, id):
     notificacion = Notificacion.query.get(id)
     if not notificacion:
         return jsonify(error="Notificación no encontrada."), 404
+    # Solo el destinatario o admin pueden marcar como leída
+    if usuario_actual.get('rol') != 'admin' and usuario_actual.get('id') != notificacion.id_usuario:
+        return jsonify(error='No autorizado.'), 403
     try:
         notificacion.leida = True
         db.session.commit()
@@ -92,10 +101,14 @@ def marcar_como_leida(id):
 
 # DELETE - Borrar Notificación
 @app.route('/notificaciones/<int:id>', methods=['DELETE'])
-def eliminar_notificacion(id):
+@auth_required()
+def eliminar_notificacion(usuario_actual, id):
     notificacion = Notificacion.query.get(id)
     if not notificacion:
         return jsonify(error="Notificación no encontrada."), 404
+    # Solo el receptor o admin pueden eliminar
+    if usuario_actual.get('rol') != 'admin' and usuario_actual.get('id') != notificacion.id_usuario:
+        return jsonify(error='No autorizado.'), 403
     try:
         db.session.delete(notificacion)
         db.session.commit()

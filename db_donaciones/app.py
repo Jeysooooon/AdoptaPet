@@ -4,6 +4,7 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from dotenv import load_dotenv
+from auth_utils import auth_required
 
 load_dotenv()
 
@@ -63,7 +64,8 @@ def registrar_donacion():
 
 # GET - Ver todas las donaciones recibidas
 @app.route('/donaciones', methods=['GET'])
-def listar_donaciones():
+@auth_required('admin')
+def listar_donaciones(usuario_actual):
     try:
         donaciones = Donacion.query.all()
         return jsonify(donaciones=[d.to_dict() for d in donaciones]), 200
@@ -72,7 +74,8 @@ def listar_donaciones():
 
 # DELETE - Eliminar registro de donación (Logs de auditoría)
 @app.route('/donaciones/<int:id>', methods=['DELETE'])
-def eliminar_donacion(id):
+@auth_required('admin')
+def eliminar_donacion(usuario_actual, id):
     donacion = Donacion.query.get(id)
     if not donacion:
         return jsonify(error="Donación no encontrada."), 404

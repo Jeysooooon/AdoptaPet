@@ -3,6 +3,7 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from dotenv import load_dotenv
+from auth_utils import auth_required
 
 load_dotenv()
 
@@ -40,7 +41,8 @@ def home():
 
 # POST - Publicar Evento
 @app.route('/eventos', methods=['POST'])
-def crear_evento():
+@auth_required('admin')
+def crear_evento(usuario_actual):
     data = request.get_json() or {}
     titulo = data.get('titulo')
     descripcion = data.get('descripcion')
@@ -75,7 +77,8 @@ def listar_eventos():
 
 # PUT - Editar un Evento
 @app.route('/eventos/<int:id>', methods=['PUT'])
-def actualizar_evento(id):
+@auth_required('admin')
+def actualizar_evento(usuario_actual, id):
     evento = Evento.query.get(id)
     if not evento:
         return jsonify(error="Evento no encontrado."), 404
@@ -95,7 +98,8 @@ def actualizar_evento(id):
 
 # DELETE - Cancelar Evento
 @app.route('/eventos/<int:id>', methods=['DELETE'])
-def eliminar_evento(id):
+@auth_required('admin')
+def eliminar_evento(usuario_actual, id):
     evento = Evento.query.get(id)
     if not evento:
         return jsonify(error="Evento no encontrado."), 404
