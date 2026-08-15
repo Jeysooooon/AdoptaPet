@@ -20,7 +20,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# Modelo de base de datos para las Mascotas
+# ==================== MODELOS DE BASE DE DATOS ====================
+
 class Mascota(db.Model):
     __tablename__ = 'mascotas'
     id_mascota = db.Column(db.Integer, primary_key=True)
@@ -33,6 +34,13 @@ class Mascota(db.Model):
     estado = db.Column(db.String(50), nullable=False, default='Disponible')
     foto_url = db.Column(db.String(500), nullable=True)
     fecha_registro = db.Column(db.DateTime, default=datetime.utcnow)
+
+    caracteristicas = db.relationship(
+        'Caracteristica',
+        secondary='mascota_caracteristica',
+        backref=db.backref('mascotas', lazy=True),
+        lazy=True
+    )
 
     def to_dict(self):
         return {
@@ -48,13 +56,6 @@ class Mascota(db.Model):
             'fecha_registro': self.fecha_registro.isoformat() if self.fecha_registro else None
         }
 
-    # Relación N:M con Caracteristica, a través de la tabla intermedia mascota_caracteristica
-    caracteristicas = db.relationship(
-        'Caracteristica',
-        secondary='mascota_caracteristica',
-        backref=db.backref('mascotas', lazy=True),
-        lazy=True
-    )
 class Foto(db.Model):
     __tablename__ = 'fotos'
     id_foto = db.Column(db.Integer, primary_key=True)
@@ -85,22 +86,21 @@ class Caracteristica(db.Model):
             'nombre': self.nombre
         }
 
-# Tabla intermedia de la relación N:M entre Mascota y Caracteristica
-# (una mascota puede tener varias características, y una característica puede pertenecer a varias mascotas)
 mascota_caracteristica = db.Table(
     'mascota_caracteristica',
     db.Column('id_mascota', db.Integer, db.ForeignKey('mascotas.id_mascota', ondelete='CASCADE'), primary_key=True),
     db.Column('id_caracteristica', db.Integer, db.ForeignKey('caracteristicas.id_caracteristica', ondelete='CASCADE'), primary_key=True)
 )
 
+# ==================== RUTAS PRINCIPALES DE MASCOTAS ====================
+
 @app.route('/', methods=['GET'])
 def home():
     return jsonify({"status": "Microservicio de Mascotas Corriendo Exitosamente"}), 200
 
-# POST - Crear Mascota
 @app.route('/mascotas', methods=['POST'])
 @auth_required('admin')
-def crear_mascota(usuario_actual):
+def crear_mascota():
     data = request.get_json() or {}
     nombre = data.get('nombre')
     especie = data.get('especie')
@@ -130,7 +130,6 @@ def crear_mascota(usuario_actual):
         db.session.rollback()
         return jsonify(error=f"Error al registrar mascota: {str(e)}"), 500
 
-# GET - Listar todas las mascotas
 @app.route('/mascotas', methods=['GET'])
 def listar_mascotas():
     try:
@@ -148,7 +147,6 @@ def listar_mascotas():
     except Exception as e:
         return jsonify(error=f"Error al obtener mascotas: {str(e)}"), 500
 
-# GET - Detalle de mascota por ID
 @app.route('/mascotas/<int:id>', methods=['GET'])
 def obtener_mascota(id):
     mascota = Mascota.query.get(id)
@@ -156,10 +154,9 @@ def obtener_mascota(id):
         return jsonify(error="Mascota no encontrada."), 404
     return jsonify(mascota.to_dict()), 200
 
-# PUT - Actualizar Mascota
 @app.route('/mascotas/<int:id>', methods=['PUT'])
 @auth_required('admin')
-def actualizar_mascota(usuario_actual, id):
+def actualizar_mascota(id):
     mascota = Mascota.query.get(id)
     if not mascota:
         return jsonify(error="Mascota no encontrada."), 404
@@ -182,10 +179,9 @@ def actualizar_mascota(usuario_actual, id):
         db.session.rollback()
         return jsonify(error=f"Error al actualizar mascota: {str(e)}"), 500
 
-# DELETE - Eliminar Mascota
 @app.route('/mascotas/<int:id>', methods=['DELETE'])
 @auth_required('admin')
-def eliminar_mascota(usuario_actual, id):
+def eliminar_mascota(id):
     mascota = Mascota.query.get(id)
     if not mascota:
         return jsonify(error="Mascota no encontrada."), 404
@@ -196,12 +192,12 @@ def eliminar_mascota(usuario_actual, id):
     except Exception as e:
         db.session.rollback()
         return jsonify(error=f"Error al eliminar mascota: {str(e)}"), 500
-# ==================== ENDPOINTS DE FOTOS (relación 1:N con Mascota) ====================
 
-# POST - Agregar una foto a una mascota
+# ==================== ENDPOINTS DE FOTOS ====================
+
 @app.route('/mascotas/<int:id_mascota>/fotos', methods=['POST'])
 @auth_required('admin')
-def agregar_foto(usuario_actual, id_mascota):
+def agregar_foto(id_mascota):
     mascota = Mascota.query.get(id_mascota)
     if not mascota:
         return jsonify(error="Mascota no encontrada."), 404
@@ -224,7 +220,6 @@ def agregar_foto(usuario_actual, id_mascota):
         db.session.rollback()
         return jsonify(error=f"Error al agregar foto: {str(e)}"), 500
 
-# GET - Listar las fotos de una mascota
 @app.route('/mascotas/<int:id_mascota>/fotos', methods=['GET'])
 def listar_fotos(id_mascota):
     mascota = Mascota.query.get(id_mascota)
@@ -233,10 +228,9 @@ def listar_fotos(id_mascota):
     fotos = Foto.query.filter_by(id_mascota=id_mascota).all()
     return jsonify(fotos=[f.to_dict() for f in fotos]), 200
 
-# DELETE - Eliminar una foto puntual
 @app.route('/fotos/<int:id_foto>', methods=['DELETE'])
 @auth_required('admin')
-def eliminar_foto(usuario_actual, id_foto):
+def eliminar_foto(id_foto):
     foto = Foto.query.get(id_foto)
     if not foto:
         return jsonify(error="Foto no encontrada."), 404
@@ -248,12 +242,11 @@ def eliminar_foto(usuario_actual, id_foto):
         db.session.rollback()
         return jsonify(error=f"Error al eliminar foto: {str(e)}"), 500
 
-# ==================== ENDPOINTS DE CARACTERÍSTICAS (relación N:M con Mascota) ====================
+# ==================== ENDPOINTS DE CARACTERÍSTICAS ====================
 
-# POST - Crear una característica nueva en el catálogo (ej. "Vacunado", "Esterilizado")
 @app.route('/caracteristicas', methods=['POST'])
 @auth_required('admin')
-def crear_caracteristica(usuario_actual):
+def crear_caracteristica():
     data = request.get_json() or {}
     nombre = data.get('nombre')
     if not nombre:
@@ -269,7 +262,6 @@ def crear_caracteristica(usuario_actual):
         db.session.rollback()
         return jsonify(error=f"Error al crear característica: {str(e)}"), 500
 
-# GET - Listar todo el catálogo de características disponibles
 @app.route('/caracteristicas', methods=['GET'])
 def listar_caracteristicas():
     try:
@@ -278,10 +270,9 @@ def listar_caracteristicas():
     except Exception as e:
         return jsonify(error=f"Error al listar características: {str(e)}"), 500
 
-# POST - Asignar una característica existente a una mascota
 @app.route('/mascotas/<int:id_mascota>/caracteristicas', methods=['POST'])
 @auth_required('admin')
-def asignar_caracteristica(usuario_actual, id_mascota):
+def asignar_caracteristica(id_mascota):
     mascota = Mascota.query.get(id_mascota)
     if not mascota:
         return jsonify(error="Mascota no encontrada."), 404
@@ -308,7 +299,6 @@ def asignar_caracteristica(usuario_actual, id_mascota):
         db.session.rollback()
         return jsonify(error=f"Error al asignar característica: {str(e)}"), 500
 
-# GET - Listar las características de una mascota puntual
 @app.route('/mascotas/<int:id_mascota>/caracteristicas', methods=['GET'])
 def listar_caracteristicas_mascota(id_mascota):
     mascota = Mascota.query.get(id_mascota)
@@ -316,10 +306,9 @@ def listar_caracteristicas_mascota(id_mascota):
         return jsonify(error="Mascota no encontrada."), 404
     return jsonify(caracteristicas=[c.to_dict() for c in mascota.caracteristicas]), 200
 
-# DELETE - Quitar una característica de una mascota (no borra el catálogo, solo la asociación)
 @app.route('/mascotas/<int:id_mascota>/caracteristicas/<int:id_caracteristica>', methods=['DELETE'])
 @auth_required('admin')
-def quitar_caracteristica(usuario_actual, id_mascota, id_caracteristica):
+def quitar_caracteristica(id_mascota, id_caracteristica):
     mascota = Mascota.query.get(id_mascota)
     if not mascota:
         return jsonify(error="Mascota no encontrada."), 404
@@ -338,6 +327,6 @@ def quitar_caracteristica(usuario_actual, id_mascota, id_caracteristica):
 
 if __name__ == "__main__":
     with app.app_context():
-        db.create_all()  # Crea la tabla automáticamente en Railway
+        db.create_all()
     port = int(os.getenv("PORT", 48914))
     app.run(host="0.0.0.0", port=port, debug=True)

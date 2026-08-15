@@ -1,6 +1,7 @@
 import os
 import requests  # Para comunicarse con otros servicios
-from datetime import datetime
+import jwt
+from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
@@ -19,6 +20,24 @@ if database_url:
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
+
+
+def generate_service_token():
+    """Genera un JWT usado por este servicio para autenticarse ante otros servicios.
+    Firma con el JWT_SECRET_KEY y el rol 'service'."""
+    JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'clave-compartida-adoptapet-2026')
+    JWT_ALGORITHM = os.getenv('JWT_ALGORITHM', 'HS256')
+    SERVICE_TOKEN_EXP_HORAS = int(os.getenv('SERVICE_TOKEN_EXP_HORAS', 24))
+    payload = {
+        'rol': 'service',
+        'iss': 'adopciones',
+        'exp': datetime.utcnow() + timedelta(hours=SERVICE_TOKEN_EXP_HORAS)
+    }
+    token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    # PyJWT < 2 devuelve bytes, asegurarse de retornar str
+    if isinstance(token, bytes):
+        token = token.decode('utf-8')
+    return token
 
 # URLs internas para comunicarse con los otros microservicios
 MASCOTAS_SERVICE_URL = "http://localhost:48914/mascotas"
@@ -119,19 +138,33 @@ def actualizar_solicitud(usuario_actual, id):
         # Si se aprueba, cambiamos automáticamente la mascota a "Adoptado"
         if nuevo_estado == 'Aprobado':
             try:
-                requests.put(f"{MASCOTAS_SERVICE_URL}/{solicitud.id_mascota}", json={"estado": "Adoptado"}, timeout=3)
-            except requests.exceptions.RequestException:
-                pass
+                        # Usar token de servicio para autenticar la petición hacia Mascotas
+                        service_token = generate_service_token()
+                        requests.put(
+                            f"{MASCOTAS_SERVICE_URL}/{solicitud.id_mascota}",
+                            json={"estado": "Adoptado"},
+                            headers={'Authorization': f'Bearer {service_token}'},
+                            timeout=3
+                        )
+                    except requests.exceptions.RequestException:
+                        pass
 
-        # Enviamos notificación al usuario de forma automática
-        try:
-            mensaje_notif = f"Tu solicitud de adopción para la mascota #{solicitud.id_mascota} ha sido {nuevo_estado}."
-            requests.post(NOTIFICACIONES_SERVICE_URL, json={
-                "id_usuario": solicitud.id_usuario,
-                "mensaje": mensaje_notif
-            }, timeout=3)
-        except requests.exceptions.RequestException:
-            pass
+                # Enviamos notificación al usuario de forma automática
+                try:
+                    mensaje_notif = f"Tu solicitud de adopción para la mascota #{solicitud.id_mascota} ha sido {nuevo_estado}."
+                    # Enviar la notificación usando un token de servicio para autenticarse
+                    service_token = generate_service_token()
+                    requests.post(
+                        NOTIFICACIONES_SERVICE_URL,
+                        json={
+                            "id_usuario": solicitud.id_usuario,
+                            "mensaje": mensaje_notif
+                        },
+                        headers={'Authorization': f'Bearer {service_token}'},
+                        timeout=3
+                    )
+                except requests.exceptions.RequestException:
+                    pass
 
         return jsonify(message="Solicitud procesada correctamente.", solicitud=solicitud.to_dict()), 200
     except Exception as e:

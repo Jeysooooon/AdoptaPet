@@ -14,15 +14,20 @@ def auth_required(role=None):
             auth_header = request.headers.get('Authorization', '')
             if not auth_header.startswith('Bearer '):
                 return jsonify(error='Token de autenticación requerido.'), 401
+            
             token = auth_header.split(' ', 1)[1].strip()
+            
             try:
                 payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+                request.usuario_actual = payload  # Almacenado de forma global en la petición
             except jwt.ExpiredSignatureError:
                 return jsonify(error='El token ha expirado. Inicia sesión de nuevo.'), 401
             except jwt.InvalidTokenError:
                 return jsonify(error='Token inválido.'), 401
+            
             if role and payload.get('rol') != role:
                 return jsonify(error=f'Acceso denegado. Requiere rol {role}.'), 403
-            return f(payload, *args, **kwargs)
+            
+            return f(*args, **kwargs)
         return wrapper
     return decorator

@@ -42,17 +42,28 @@ def home():
 
 # POST - Crear Notificación
 @app.route('/notificaciones', methods=['POST'])
-def crear_notificacion():
+@auth_required()
+def crear_notificacion(usuario_actual):
     data = request.get_json() or {}
     id_usuario = data.get('id_usuario')
     mensaje = data.get('mensaje')
     
     if not id_usuario or not mensaje:
         return jsonify(error="id_usuario y mensaje son obligatorios."), 400
+
+    # Permisos: 'service' y 'admin' pueden crear para cualquier usuario.
+    # Usuarios regulares solo pueden crear notificaciones para sí mismos.
+    try:
+        id_usuario_int = int(id_usuario)
+    except Exception:
+        return jsonify(error="id_usuario inválido."), 400
+
+    if usuario_actual.get('rol') not in ('admin', 'service') and usuario_actual.get('id') != id_usuario_int:
+        return jsonify(error='No autorizado para crear notificación para otro usuario.'), 403
         
     try:
         nueva_notificacion = Notificacion(
-            id_usuario=int(id_usuario),
+            id_usuario=id_usuario_int,
             mensaje=mensaje,
             leida=False
         )

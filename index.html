@@ -56,8 +56,14 @@
         <!-- Header Superior -->
         <header class="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between">
             <h2 id="current-view-title" class="text-xl font-bold text-slate-800">🐾 Mascotas Disponibles</h2>
-            <div id="connectionStatus" class="flex items-center gap-2 text-xs font-semibold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full">
-                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Servidores Activos
+            <div class="flex items-center gap-4">
+                <div id="connectionStatus" class="flex items-center gap-2 text-xs font-semibold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Servidores Activos
+                </div>
+                <div id="authArea" class="flex items-center gap-3">
+                    <!-- Rellenado desde JS: botón Login o usuario y Logout -->
+                    <button id="btnLoginHeader" onclick="toggleModal('modal-login', true)" class="bg-slate-900 text-white px-3 py-1 rounded-lg font-semibold">Iniciar sesión</button>
+                </div>
             </div>
         </header>
 
@@ -219,6 +225,30 @@
         </div>
     </main>
 
+    <!-- 🔐 MODAL: LOGIN -->
+    <div id="modal-login" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
+            <header class="p-6 bg-slate-50 border-b flex justify-between items-center">
+                <h3 class="text-lg font-bold text-slate-800">🔐 Iniciar Sesión</h3>
+                <button onclick="toggleModal('modal-login', false)" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </header>
+            <form id="formLogin" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Correo Electrónico</label>
+                    <input type="email" id="loginCorreo" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Contraseña</label>
+                    <input type="password" id="loginPassword" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                </div>
+                <div class="pt-4 flex gap-3 justify-end border-t">
+                    <button type="button" onclick="toggleModal('modal-login', false)" class="px-4 py-2 text-slate-500 hover:text-slate-700 font-bold">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition-all shadow-md">Iniciar Sesión</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- 🚨 MODAL: NUEVA MASCOTA (OCULTO POR DEFECTO) -->
     <div id="modal-nueva-mascota" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
         <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
@@ -281,6 +311,101 @@
             mascotas: "48914",
             notificaciones: "48915"
         };
+
+        // --- AUTENTICACIÓN CLIENTE: apiFetch, manejo de token, UI ---
+        // Wrapper que añade Authorization cuando exista token en localStorage
+        async function apiFetch(url, opts = {}) {
+            opts = opts || {};
+            opts.headers = opts.headers || {};
+            // Si hay body y no se envió Content-Type, asumir JSON
+            if (opts.body && !opts.headers['Content-Type']) {
+                opts.headers['Content-Type'] = 'application/json';
+            }
+            const token = localStorage.getItem('token');
+            if (token) {
+                opts.headers['Authorization'] = `Bearer ${token}`;
+            }
+            return fetch(url, opts);
+        }
+
+        // Decodificar payload JWT de forma simple (solo para UI, NO válido como verificación de seguridad)
+        function parseJwt(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function updateAuthUI() {
+            const authArea = document.getElementById('authArea');
+            const token = localStorage.getItem('token');
+            if (!token) {
+                authArea.innerHTML = `<button id="btnLoginHeader" onclick="toggleModal('modal-login', true)" class="bg-slate-900 text-white px-3 py-1 rounded-lg font-semibold">Iniciar sesión</button>`;
+                // enable user ID input if present
+                const adoptUserId = document.getElementById('adoptUserId');
+                if (adoptUserId) { adoptUserId.disabled = false; adoptUserId.value = ''; }
+                return;
+            }
+
+            const payload = parseJwt(token) || {};
+            const correo = payload.correo || payload.email || 'Usuario';
+            const uid = payload.id || null;
+            authArea.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="text-sm font-semibold text-slate-700">${correo}</span>
+                    <button id="btnLogoutHeader" class="px-3 py-1 bg-rose-600 text-white rounded-md font-semibold">Cerrar sesión</button>
+                </div>
+            `;
+            // bind logout
+            document.getElementById('btnLogoutHeader').addEventListener('click', () => {
+                localStorage.removeItem('token');
+                updateAuthUI();
+                showNotification('Sesión cerrada.');
+            });
+
+            // Si hay campo de user id en formularios, rellenarlo y deshabilitar
+            const adoptUserId = document.getElementById('adoptUserId');
+            if (adoptUserId && uid) { adoptUserId.value = uid; adoptUserId.disabled = true; }
+        }
+
+        // Manejo de submit del modal de login
+        document.addEventListener('DOMContentLoaded', () => {
+            const formLogin = document.getElementById('formLogin');
+            if (formLogin) {
+                formLogin.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const correo = document.getElementById('loginCorreo').value;
+                    const password = document.getElementById('loginPassword').value;
+                    try {
+                        const res = await fetch(`http://localhost:${PORTS.usuarios}/login`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ correo, password })
+                        });
+                        const data = await res.json();
+                        if (res.ok && data.token) {
+                            localStorage.setItem('token', data.token);
+                            toggleModal('modal-login', false);
+                            updateAuthUI();
+                            showNotification('Inicio de sesión correcto.');
+                        } else {
+                            showNotification(data.error || 'Credenciales inválidas.', true);
+                        }
+                    } catch (err) {
+                        showNotification('Fallo al conectar con el servicio de Usuarios.', true);
+                    }
+                });
+            }
+
+            // Inicializar UI de autenticación
+            updateAuthUI();
+        });
 
         // 🔀 Función para alternar entre las pestañas del Menú Lateral
         function switchView(viewId) {
@@ -396,9 +521,9 @@
             };
 
             try {
-                const res = await fetch(`http://localhost:${PORTS.mascotas}/mascotas`, {
+                // Uso apiFetch para incluir Authorization si existe token
+                const res = await apiFetch(`http://localhost:${PORTS.mascotas}/mascotas`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 if (res.ok) {
@@ -407,7 +532,8 @@
                     document.getElementById('formMascota').reset();
                     cargarCatalogoMascotas();
                 } else {
-                    showNotification("No se pudo agregar el registro.", true);
+                    const err = await res.json().catch(()=>({error:'Error'}));
+                    showNotification(err.error || "No se pudo agregar el registro.", true);
                 }
             } catch (err) {
                 showNotification("Error de conexión con el servicio de Mascotas.", true);
@@ -417,15 +543,16 @@
         // 🤝 2. Enviar Solicitud de Adopción (POST)
         document.getElementById('formAdopcion').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const payload = {
-                id_mascota: parseInt(document.getElementById('adoptPetId').value),
-                id_usuario: parseInt(document.getElementById('adoptUserId').value)
-            };
+            const idMascota = parseInt(document.getElementById('adoptPetId').value);
+            const adoptUserField = document.getElementById('adoptUserId');
+            const token = localStorage.getItem('token');
+
+            // Si hay token, el servidor obtendrá el id del usuario desde el JWT; no enviar id_usuario.
+            const payload = token ? { id_mascota: idMascota } : { id_mascota: idMascota, id_usuario: parseInt(adoptUserField.value) };
 
             try {
-                const res = await fetch(`http://localhost:${PORTS.adopciones}/adopciones`, {
+                const res = await apiFetch(`http://localhost:${PORTS.adopciones}/adopciones`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 if (res.ok) {
@@ -433,7 +560,8 @@
                     document.getElementById('formAdopcion').reset();
                     cargarHistorialAdopciones();
                 } else {
-                    showNotification("Error procesando adopción.", true);
+                    const err = await res.json().catch(()=>({error:'Error'}));
+                    showNotification(err.error || "Error procesando adopción.", true);
                 }
             } catch (err) {
                 showNotification("Fallo de comunicación con Adopciones.", true);
@@ -475,23 +603,27 @@
         // 💰 3. Donaciones
         document.getElementById('formDonacion').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const uid = document.getElementById('donUserId').value;
+            const token = localStorage.getItem('token');
+            const uidField = document.getElementById('donUserId');
+            const uid = uidField ? uidField.value : null;
             const payload = {
                 monto: parseFloat(document.getElementById('donMonto').value),
-                id_usuario: uid ? parseInt(uid) : null,
+                id_usuario: token ? undefined : (uid ? parseInt(uid) : null),
                 comentario: document.getElementById('donComentario').value
             };
 
             try {
-                const res = await fetch(`http://localhost:${PORTS.donaciones}/donaciones`, {
+                const res = await apiFetch(`http://localhost:${PORTS.donaciones}/donaciones`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 if (res.ok) {
                     showNotification("💳 ¡Gracias por tu enorme donación!");
                     document.getElementById('formDonacion').reset();
                     cargarHistorialDonaciones();
+                } else {
+                    const err = await res.json().catch(()=>({error:'Error'}));
+                    showNotification(err.error || 'Error registrando donación.', true);
                 }
             } catch (err) {
                 showNotification("Fallo al registrar donación.", true);
@@ -554,7 +686,7 @@
         async function cargarNotificaciones() {
             const container = document.getElementById('listaNotificaciones');
             try {
-                const res = await fetch(`http://localhost:${PORTS.notificaciones}/notificaciones`);
+                const res = await apiFetch(`http://localhost:${PORTS.notificaciones}/notificaciones`);
                 const data = await res.json();
                 if (res.ok && data.notificaciones.length > 0) {
                     container.innerHTML = "";

@@ -1,37 +1,46 @@
 import os
+import re
+import logging
 import jwt
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
-from flask_cors import CORS  # <-- 1. Importamos CORS
+from flask_cors import CORS
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
+
+# Configuración de logs para depuración en producción
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)  # <-- 2. Activamos CORS para evitar bloqueos con el Frontend
-app.secret_key = os.getenv('SECRET_KEY', 'change-me')
 
-# Clave compartida para firmar/verificar JWT entre TODOS los microservicios.
-# Debe ser idéntica en el .env de cada servicio (Usuarios, Mascotas, Adopciones, etc.)
+# Configuración de CORS (Se recomienda restringir orígenes en producción)
+CORS(app)
+
+# Clave compartida para JWT
 JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'clave-compartida-adoptapet-2026')
 JWT_ALGORITHM = 'HS256'
 JWT_EXP_HORAS = 8
 
-database_url = os.getenv('DATABASE_URL')
-if database_url:
-    database_url = database_url.strip()
+# Ajuste de URL de base de datos para SQLAlchemy (postgres:// -> postgresql://)
+database_url = os.getenv('DATABASE_URL', 'sqlite:///usuarios.db')
+if database_url.startswith("postgres://"):
+    database_url = database_url.replace("postgres://", "postgresql://", 1)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+app.config['SQLALCHEMY_DATABASE_URI'] = database_url.strip()
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
+# Helper para validación básica de correo
+EMAIL_REGEX = r'^[\w\.-]+@[\w\.-]+\.\w+$'
 
 def generar_token(usuario):
-    """Genera un JWT firmado con los datos básicos del usuario, válido por JWT_EXP_HORAS."""
+    """Genera un JWT firmado con los datos básicos del usuario."""
     payload = {
         'id': usuario.id,
         'correo': usuario.correo,
@@ -42,8 +51,7 @@ def generar_token(usuario):
 
 
 def requiere_token(f):
-    """Decorador que exige un JWT válido en el header 'Authorization: Bearer <token>'.
-    Si es válido, inyecta el usuario decodificado como primer argumento (usuario_actual)."""
+    """Decorador para validar el JWT enviado en el header Authorization."""
     @wraps(f)
     def wrapper(*args, **kwargs):
         auth_header = request.headers.get('Authorization', '')
@@ -61,6 +69,7 @@ def requiere_token(f):
         return f(usuario_actual, *args, **kwargs)
     return wrapper
 
+
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
 
@@ -72,7 +81,7 @@ class Usuario(db.Model):
 
     @property
     def password(self):
-        raise AttributeError('La contraseña no es accesible.')
+        raise AttributeError('La contraseña no es accesible directamente.')
 
     @password.setter
     def password(self, raw_password):
@@ -89,15 +98,19 @@ class Usuario(db.Model):
             'rol': self.rol,
         }
 
+
 @app.route('/registro', methods=['POST'])
 def registro():
     data = request.get_json() or {}
-    nombre = data.get('nombre')
-    correo = data.get('correo')
+    nombre = data.get('nombre', '').strip()
+    correo = data.get('correo', '').strip().lower()
     password = data.get('password')
 
     if not nombre or not correo or not password:
         return jsonify(error='Nombre, correo y contraseña son obligatorios.'), 400
+
+    if not re.match(EMAIL_REGEX, correo):
+        return jsonify(error='Formato de correo electrónico inválido.'), 400
 
     try:
         if Usuario.query.filter_by(correo=correo).first():
@@ -108,15 +121,22 @@ def registro():
         db.session.add(usuario)
         db.session.commit()
 
-        return jsonify(message='Usuario creado exitosamente.', usuario=usuario.to_dict()), 201
-    except Exception:
+        token = generar_token(usuario)
+        return jsonify(
+            message='Usuario creado exitosamente.',
+            usuario=usuario.to_dict(),
+            token=token
+        ), 201
+    except Exception as e:
         db.session.rollback()
-        return jsonify(error='Error al crear el usuario.'), 500
+        logger.error(f"Error en registro: {str(e)}")
+        return jsonify(error='Error interno al crear el usuario.'), 500
+
 
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json() or {}
-    correo = data.get('correo')
+    correo = data.get('correo', '').strip().lower()
     password = data.get('password')
 
     if not correo or not password:
@@ -127,34 +147,35 @@ def login():
         if not usuario or not usuario.check_password(password):
             return jsonify(error='Credenciales inválidas.'), 401
 
-        session['user_id'] = usuario.id
-        session['user_email'] = usuario.correo
-        session['user_role'] = usuario.rol
         token = generar_token(usuario)
         return jsonify(message='Inicio de sesión exitoso.', usuario=usuario.to_dict(), token=token), 200
-    except Exception:
-        return jsonify(error='Error al iniciar sesión.'), 500
+    except Exception as e:
+        logger.error(f"Error en login: {str(e)}")
+        return jsonify(error='Error interno al iniciar sesión.'), 500
+
 
 @app.route('/logout', methods=['POST'])
 def logout():
-    try:
-        session.pop('user_id', None)
-        session.pop('user_email', None)
-        session.pop('user_role', None)
-        return jsonify(message='Cierre de sesión exitoso.'), 200
-    except Exception:
-        return jsonify(error='Error al cerrar sesión.'), 500
+    # En arquitecturas JWT stateless, la desconexión se gestiona en el frontend eliminando el token.
+    return jsonify(message='Cierre de sesión exitoso en cliente.'), 200
 
 
 @app.route('/perfil/<int:id>', methods=['GET'])
-def obtener_perfil(id):
+@requiere_token
+def obtener_perfil(usuario_actual, id):
     try:
+        # Validación de permisos: un usuario solo consulta su perfil o lo hace un admin
+        if usuario_actual['id'] != id and usuario_actual['rol'] != 'admin':
+            return jsonify(error='Acceso no autorizado.'), 403
+
         usuario = Usuario.query.get(id)
         if not usuario:
             return jsonify(error='Usuario no encontrado.'), 404
+
         return jsonify(usuario=usuario.to_dict()), 200
-    except Exception:
-        return jsonify(error='Error al obtener el perfil.'), 500
+    except Exception as e:
+        logger.error(f"Error al obtener perfil: {str(e)}")
+        return jsonify(error='Error interno al obtener el perfil.'), 500
 
 
 @app.route('/perfil/<int:id>', methods=['PUT'])
@@ -163,7 +184,7 @@ def actualizar_perfil(usuario_actual, id):
     data = request.get_json() or {}
     nombre = data.get('nombre')
     correo = data.get('correo')
-    password = data.get('password')  # <-- Añadido soporte para contraseña
+    password = data.get('password')
 
     try:
         usuario = Usuario.query.get(id)
@@ -171,24 +192,30 @@ def actualizar_perfil(usuario_actual, id):
             return jsonify(error='Usuario no encontrado.'), 404
 
         if usuario_actual['id'] != usuario.id and usuario_actual['rol'] != 'admin':
-            return jsonify(error='No autorizado.'), 403
+            return jsonify(error='Acceso no autorizado.'), 403
 
-        if correo and correo != usuario.correo:
-            if Usuario.query.filter_by(correo=correo).first():
-                return jsonify(error='El correo ya está registrado.'), 409
-            usuario.correo = correo
+        if correo:
+            correo = correo.strip().lower()
+            if not re.match(EMAIL_REGEX, correo):
+                return jsonify(error='Formato de correo electrónico inválido.'), 400
+
+            if correo != usuario.correo:
+                if Usuario.query.filter_by(correo=correo).first():
+                    return jsonify(error='El correo ya está registrado.'), 409
+                usuario.correo = correo
 
         if nombre:
-            usuario.nombre = nombre
+            usuario.nombre = nombre.strip()
 
-        if password:  # <-- Si se envía contraseña, se encripta automáticamente
+        if password:
             usuario.password = password
 
         db.session.commit()
         return jsonify(message='Perfil actualizado.', usuario=usuario.to_dict()), 200
-    except Exception:
+    except Exception as e:
         db.session.rollback()
-        return jsonify(error='Error al actualizar el perfil.'), 500
+        logger.error(f"Error al actualizar perfil: {str(e)}")
+        return jsonify(error='Error interno al actualizar el perfil.'), 500
 
 
 @app.route('/usuarios/<int:id>', methods=['DELETE'])
@@ -200,14 +227,15 @@ def eliminar_usuario(usuario_actual, id):
             return jsonify(error='Usuario no encontrado.'), 404
 
         if usuario_actual['id'] != usuario.id and usuario_actual['rol'] != 'admin':
-            return jsonify(error='No autorizado.'), 403
+            return jsonify(error='Acceso no autorizado.'), 403
 
         db.session.delete(usuario)
         db.session.commit()
         return jsonify(message='Usuario eliminado.'), 200
-    except Exception:
+    except Exception as e:
         db.session.rollback()
-        return jsonify(error='Error al eliminar el usuario.'), 500
+        logger.error(f"Error al eliminar usuario: {str(e)}")
+        return jsonify(error='Error interno al eliminar el usuario.'), 500
 
 
 @app.route('/usuarios', methods=['GET'])
@@ -218,35 +246,39 @@ def listar_usuarios(usuario_actual):
             return jsonify(error='Acceso denegado. Requiere rol admin.'), 403
 
         usuarios = Usuario.query.all()
-        usuarios_list = [u.to_dict() for u in usuarios]
-        return jsonify(usuarios=usuarios_list), 200
-    except Exception:
-        return jsonify(error='Error al obtener usuarios.'), 500
+        return jsonify(usuarios=[u.to_dict() for u in usuarios]), 200
+    except Exception as e:
+        logger.error(f"Error al listar usuarios: {str(e)}")
+        return jsonify(error='Error interno al obtener usuarios.'), 500
 
 
 @app.route('/recuperar-password', methods=['POST'])
 def recuperar_password():
     data = request.get_json() or {}
-    correo = data.get('correo')
+    correo = data.get('correo', '').strip().lower()
     if not correo:
         return jsonify(error='El correo es requerido.'), 400
+
     try:
         usuario = Usuario.query.filter_by(correo=correo).first()
         if usuario:
-            # Simular envío de correo: integrar servicio real en producción
+            # Integrar aquí servicio de envío de correos (ej. SendGrid, Mailgun)
             pass
         return jsonify(message='Si el correo existe, se han enviado instrucciones para recuperar la contraseña.'), 200
-    except Exception:
-        return jsonify(error='Error al procesar la solicitud.'), 500
+    except Exception as e:
+        logger.error(f"Error en recuperar-password: {str(e)}")
+        return jsonify(error='Error interno al procesar la solicitud.'), 500
+
 
 @app.route('/')
 def home():
     return {"status": "Microservicio de Usuarios Corriendo Exitosamente"}, 200
 
+
+# Creación de tablas fuera del bloque main para garantizar disponibilidad bajo WSGI/Gunicorn
+with app.app_context():
+    db.create_all()
+
 if __name__ == "__main__":
-    # 3. Restauramos la creación automática de tablas en Railway al iniciar el script
-    with app.app_context():
-        db.create_all()
-        
     port = int(os.environ.get("PORT", 48910))
     app.run(host="0.0.0.0", port=port, debug=True)
