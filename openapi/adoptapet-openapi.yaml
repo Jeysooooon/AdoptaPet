@@ -1,773 +1,602 @@
 openapi: 3.0.3
 info:
   title: AdoptaPet API
-  version: 1.0.0
+  version: 2.0.0
   description: >-
-    Especificación OpenAPI 3.0 para los Sprints 2 y 3 de AdoptaPet,
-    incluyendo autenticación, gestión de usuarios, catálogo de mascotas y
-    solicitudes de adopción.
-servers:
-  - url: http://localhost:5000
-    description: Entorno local de desarrollo
-  - url: https://adoptapet-production.up.railway.app
-    description: Entorno de despliegue en Railway
+    Documentación de los 6 microservicios de AdoptaPet (Usuarios, Mascotas,
+    Adopciones, Donaciones, Eventos, Notificaciones). Cada microservicio se
+    ejecuta de forma independiente en su propio puerto local; el servidor
+    correspondiente se indica en cada grupo de rutas.
 security:
   - bearerAuth: []
 tags:
-  - name: Auth
-    description: Registro, login y recuperación de contraseña
   - name: Usuarios
-    description: Perfil de usuario y administración de usuarios
+    description: Registro, login y administración de usuarios (puerto 48910)
   - name: Mascotas
-    description: Catálogo y gestión de mascotas
-  - name: Solicitudes
-    description: Solicitudes de adopción y aprobación/rechazo
+    description: Catálogo, fotos y características de mascotas (puerto 48914)
+  - name: Adopciones
+    description: Solicitudes de adopción (puerto 48911)
+  - name: Donaciones
+    description: Registro y administración de donaciones (puerto 48912)
+  - name: Eventos
+    description: Eventos de adopción del refugio (puerto 48913)
+  - name: Notificaciones
+    description: Notificaciones de usuario (puerto 48915)
+
 paths:
-  /api/v1/auth/register:
+  # ==================== USUARIOS (puerto 48910) ====================
+  /registro:
+    servers: [{url: "http://localhost:48910"}]
     post:
-      tags:
-        - Auth
+      tags: [Usuarios]
       summary: Registrar un nuevo usuario
-      description: Crea una cuenta nueva para un usuario estándar.
+      security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RegisterRequest'
+              type: object
+              required: [nombre, correo, password]
+              properties:
+                nombre: {type: string}
+                correo: {type: string, format: email}
+                password: {type: string, format: password}
       responses:
-        '201':
-          description: Usuario creado correctamente
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthResponse'
-        '400':
-          description: Datos inválidos
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '409':
-          description: El correo ya está registrado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+        "201": {description: Usuario creado}
+        "400": {description: Datos inválidos o correo ya registrado}
+        "500": {description: Error interno}
 
-  /api/v1/auth/login:
+  /login:
+    servers: [{url: "http://localhost:48910"}]
     post:
-      tags:
-        - Auth
-      summary: Iniciar sesión
-      description: Autentica a un usuario y devuelve un token JWT.
+      tags: [Usuarios]
+      summary: Iniciar sesión y obtener token JWT
+      security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LoginRequest'
+              type: object
+              required: [correo, password]
+              properties:
+                correo: {type: string, format: email}
+                password: {type: string, format: password}
       responses:
-        '200':
-          description: Inicio de sesión exitoso
+        "200":
+          description: Login exitoso, devuelve token JWT
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthResponse'
-        '401':
-          description: Credenciales inválidas
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                type: object
+                properties:
+                  message: {type: string}
+                  token: {type: string}
+                  usuario: {type: object}
+        "400": {description: Correo o contraseña faltante}
+        "401": {description: Credenciales inválidas}
 
-  /api/v1/auth/forgot-password:
+  /logout:
+    servers: [{url: "http://localhost:48910"}]
     post:
-      tags:
-        - Auth
-      summary: Recuperar contraseña
-      description: Envía un enlace o token temporal para restablecer la contraseña.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ForgotPasswordRequest'
+      tags: [Usuarios]
+      summary: Cerrar sesión (invalidación del lado del cliente)
+      security: []
       responses:
-        '200':
-          description: Solicitud procesada correctamente
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MessageResponse'
-        '400':
-          description: Formato de correo inválido
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+        "200": {description: Sesión cerrada}
 
-  /api/v1/users/profile:
+  /perfil/{id}:
+    servers: [{url: "http://localhost:48910"}]
     get:
-      tags:
-        - Usuarios
-      summary: Obtener perfil del usuario autenticado
-      description: Devuelve la información del perfil del usuario logueado.
-      security:
-        - bearerAuth: []
+      tags: [Usuarios]
+      summary: Ver perfil de un usuario (propio o admin)
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
       responses:
-        '200':
-          description: Perfil encontrado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Usuario'
-        '401':
-          description: No autenticado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+        "200": {description: Datos del usuario}
+        "401": {description: Token requerido o inválido}
+        "403": {description: No autorizado a ver este perfil}
+        "404": {description: Usuario no encontrado}
     put:
-      tags:
-        - Usuarios
-      summary: Actualizar perfil del usuario autenticado
-      description: Permite editar los datos personales del usuario autenticado.
-      security:
-        - bearerAuth: []
+      tags: [Usuarios]
+      summary: Editar perfil de un usuario (propio o admin)
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateProfileRequest'
+              type: object
+              properties:
+                nombre: {type: string}
+                correo: {type: string, format: email}
+                password: {type: string, format: password}
       responses:
-        '200':
-          description: Perfil actualizado correctamente
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Usuario'
-        '400':
-          description: Datos inválidos
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
-          description: No autenticado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+        "200": {description: Usuario actualizado}
+        "401": {description: Token requerido o inválido}
+        "403": {description: No autorizado a editar este perfil}
+        "404": {description: Usuario no encontrado}
 
-  /api/v1/users:
+  /usuarios:
+    servers: [{url: "http://localhost:48910"}]
     get:
-      tags:
-        - Usuarios
-      summary: Listado general de usuarios
-      description: Lista usuarios registrados. Solo accesible para administradores.
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: query
-          name: page
-          schema:
-            type: integer
-            default: 1
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            default: 20
-        - in: query
-          name: search
-          schema:
-            type: string
+      tags: [Usuarios]
+      summary: Listar todos los usuarios (solo admin)
       responses:
-        '200':
-          description: Lista de usuarios
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UsersListResponse'
-        '403':
-          description: No autorizado
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+        "200": {description: Lista de usuarios}
+        "401": {description: Token requerido o inválido}
+        "403": {description: Requiere rol admin}
 
-  /api/v1/mascotas:
-    get:
-      tags:
-        - Mascotas
-      summary: Obtener catálogo de mascotas
-      description: Devuelve mascotas disponibles o filtradas por búsqueda y criterios.
-      parameters:
-        - in: query
-          name: search
-          schema:
-            type: string
-        - in: query
-          name: tipo
-          schema:
-            type: string
-            enum: [perro, gato, otro]
-        - in: query
-          name: estado
-          schema:
-            type: string
-            enum: [disponible, pendiente, adoptada, inactiva]
-        - in: query
-          name: page
-          schema:
-            type: integer
-            default: 1
-        - in: query
-          name: limit
-          schema:
-            type: integer
-            default: 10
-      responses:
-        '200':
-          description: Catálogo consultado correctamente
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MascotasListResponse'
-    post:
-      tags:
-        - Mascotas
-      summary: Registrar una nueva mascota
-      description: Crea una mascota en el catálogo. Solo accesible por administradores.
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateMascotaRequest'
-      responses:
-        '201':
-          description: Mascota creada correctamente
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Mascota'
-        '400':
-          description: Datos inválidos
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '403':
-          description: Sin permisos para crear mascotas
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /api/v1/mascotas/{id}:
-    get:
-      tags:
-        - Mascotas
-      summary: Obtener detalle de una mascota
-      description: Devuelve la información detallada de una mascota por su identificador.
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      responses:
-        '200':
-          description: Mascota encontrada
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Mascota'
-        '404':
-          description: Mascota no encontrada
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-    put:
-      tags:
-        - Mascotas
-      summary: Editar una mascota
-      description: Actualiza la información de una mascota. Solo administradores.
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UpdateMascotaRequest'
-      responses:
-        '200':
-          description: Mascota actualizada correctamente
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Mascota'
-        '403':
-          description: Sin permisos para editar mascotas
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Mascota no encontrada
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+  /usuarios/{id}:
+    servers: [{url: "http://localhost:48910"}]
     delete:
-      tags:
-        - Mascotas
-      summary: Eliminar una mascota
-      description: Elimina una mascota del catálogo. Solo administradores.
-      security:
-        - bearerAuth: []
+      tags: [Usuarios]
+      summary: Eliminar un usuario (solo admin)
       parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
+        - {name: id, in: path, required: true, schema: {type: integer}}
       responses:
-        '204':
-          description: Mascota eliminada correctamente
-        '403':
-          description: Sin permisos para eliminar mascotas
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Mascota no encontrada
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+        "200": {description: Usuario eliminado}
+        "401": {description: Token requerido o inválido}
+        "403": {description: Requiere rol admin}
+        "404": {description: Usuario no encontrado}
 
-  /api/v1/solicitudes:
+  /recuperar-password:
+    servers: [{url: "http://localhost:48910"}]
     post:
-      tags:
-        - Solicitudes
-      summary: Enviar solicitud de adopción
-      description: Crea una solicitud de adopción para una mascota disponible.
-      security:
-        - bearerAuth: []
+      tags: [Usuarios]
+      summary: Solicitar recuperación de contraseña
+      security: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateSolicitudRequest'
+              type: object
+              required: [correo]
+              properties:
+                correo: {type: string, format: email}
       responses:
-        '201':
-          description: Solicitud creada correctamente
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SolicitudAdopcion'
-        '400':
-          description: Datos inválidos
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Mascota no encontrada
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+        "200": {description: Instrucciones enviadas (si el correo existe)}
+        "400": {description: Correo faltante}
 
-  /api/v1/solicitudes/{id}/estado:
-    put:
-      tags:
-        - Solicitudes
-      summary: Aprobar o rechazar una solicitud
-      description: Cambia el estado de una solicitud. Solo accesible para administradores.
-      security:
-        - bearerAuth: []
-      parameters:
-        - in: path
-          name: id
-          required: true
-          schema:
-            type: integer
+  # ==================== MASCOTAS (puerto 48914) ====================
+  /mascotas:
+    servers: [{url: "http://localhost:48914"}]
+    post:
+      tags: [Mascotas]
+      summary: Registrar una nueva mascota (solo admin)
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateSolicitudEstadoRequest'
+              type: object
+              required: [nombre, especie, raza, edad_meses]
+              properties:
+                nombre: {type: string}
+                especie: {type: string, enum: [Perro, Gato]}
+                raza: {type: string}
+                edad_meses: {type: integer}
+                tamaño: {type: string, enum: [Pequeño, Mediano, Grande]}
+                descripcion: {type: string}
+                foto_url: {type: string}
+                estado: {type: string, default: Disponible}
       responses:
-        '200':
-          description: Estado actualizado correctamente
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SolicitudAdopcion'
-        '403':
-          description: Sin permisos para cambiar el estado de la solicitud
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '404':
-          description: Solicitud no encontrada
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
+        "201": {description: Mascota creada}
+        "400": {description: Datos inválidos}
+        "401": {description: Token requerido o inválido}
+        "403": {description: Requiere rol admin}
+    get:
+      tags: [Mascotas]
+      summary: Listar mascotas del catálogo (público)
+      security: []
+      parameters:
+        - {name: especie, in: query, schema: {type: string}}
+      responses:
+        "200": {description: Lista de mascotas}
+
+  /mascotas/{id}:
+    servers: [{url: "http://localhost:48914"}]
+    get:
+      tags: [Mascotas]
+      summary: Ver el detalle de una mascota (público)
+      security: []
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200": {description: Datos de la mascota}
+        "404": {description: Mascota no encontrada}
+    put:
+      tags: [Mascotas]
+      summary: Editar una mascota (solo admin)
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nombre: {type: string}
+                especie: {type: string}
+                raza: {type: string}
+                edad_meses: {type: integer}
+                tamaño: {type: string}
+                descripcion: {type: string}
+                estado: {type: string}
+                foto_url: {type: string}
+      responses:
+        "200": {description: Mascota actualizada}
+        "401": {description: Token requerido o inválido}
+        "403": {description: Requiere rol admin}
+        "404": {description: Mascota no encontrada}
+    delete:
+      tags: [Mascotas]
+      summary: Eliminar una mascota (solo admin)
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200": {description: Mascota eliminada}
+        "401": {description: Token requerido o inválido}
+        "403": {description: Requiere rol admin}
+        "404": {description: Mascota no encontrada}
+
+  /mascotas/{id_mascota}/fotos:
+    servers: [{url: "http://localhost:48914"}]
+    post:
+      tags: [Mascotas]
+      summary: Agregar una foto a una mascota (solo admin)
+      parameters:
+        - {name: id_mascota, in: path, required: true, schema: {type: integer}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [url]
+              properties:
+                url: {type: string}
+                es_principal: {type: boolean, default: false}
+      responses:
+        "201": {description: Foto agregada}
+        "401": {description: Token requerido o inválido}
+        "403": {description: Requiere rol admin}
+        "404": {description: Mascota no encontrada}
+    get:
+      tags: [Mascotas]
+      summary: Listar las fotos de una mascota (público)
+      security: []
+      parameters:
+        - {name: id_mascota, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200": {description: Lista de fotos}
+
+  /fotos/{id_foto}:
+    servers: [{url: "http://localhost:48914"}]
+    delete:
+      tags: [Mascotas]
+      summary: Eliminar una foto (solo admin)
+      parameters:
+        - {name: id_foto, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200": {description: Foto eliminada}
+        "401": {description: Token requerido o inválido}
+        "403": {description: Requiere rol admin}
+        "404": {description: Foto no encontrada}
+
+  /caracteristicas:
+    servers: [{url: "http://localhost:48914"}]
+    post:
+      tags: [Mascotas]
+      summary: Crear una característica del catálogo (solo admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nombre]
+              properties:
+                nombre: {type: string}
+      responses:
+        "201": {description: Característica creada}
+        "401": {description: Token requerido o inválido}
+        "403": {description: Requiere rol admin}
+    get:
+      tags: [Mascotas]
+      summary: Listar el catálogo de características (público)
+      security: []
+      responses:
+        "200": {description: Lista de características}
+
+  /mascotas/{id_mascota}/caracteristicas:
+    servers: [{url: "http://localhost:48914"}]
+    post:
+      tags: [Mascotas]
+      summary: Asociar una característica a una mascota (solo admin, relación N:M)
+      parameters:
+        - {name: id_mascota, in: path, required: true, schema: {type: integer}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_caracteristica]
+              properties:
+                id_caracteristica: {type: integer}
+      responses:
+        "201": {description: Característica asociada}
+        "401": {description: Token requerido o inválido}
+        "403": {description: Requiere rol admin}
+        "404": {description: Mascota o característica no encontrada}
+    get:
+      tags: [Mascotas]
+      summary: Listar las características de una mascota (público)
+      security: []
+      parameters:
+        - {name: id_mascota, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200": {description: Lista de características de la mascota}
+
+  /mascotas/{id_mascota}/caracteristicas/{id_caracteristica}:
+    servers: [{url: "http://localhost:48914"}]
+    delete:
+      tags: [Mascotas]
+      summary: Quitar una característica de una mascota (solo admin)
+      parameters:
+        - {name: id_mascota, in: path, required: true, schema: {type: integer}}
+        - {name: id_caracteristica, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200": {description: Característica removida}
+        "401": {description: Token requerido o inválido}
+        "403": {description: Requiere rol admin}
+        "404": {description: Relación no encontrada}
+
+  # ==================== ADOPCIONES (puerto 48911) ====================
+  /adopciones:
+    servers: [{url: "http://localhost:48911"}]
+    post:
+      tags: [Adopciones]
+      summary: Crear una solicitud de adopción (requiere sesión)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_mascota]
+              properties:
+                id_mascota: {type: integer}
+                motivo_adopcion: {type: string}
+      responses:
+        "201": {description: Solicitud creada}
+        "400": {description: La mascota no está disponible}
+        "401": {description: Token requerido o inválido}
+        "404": {description: Mascota no encontrada}
+    get:
+      tags: [Adopciones]
+      summary: Listar solicitudes de adopción
+      security: []
+      responses:
+        "200": {description: Lista de solicitudes}
+
+  /adopciones/{id}:
+    servers: [{url: "http://localhost:48911"}]
+    put:
+      tags: [Adopciones]
+      summary: Aprobar o rechazar una solicitud (solo admin)
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [estado]
+              properties:
+                estado: {type: string, enum: [Aprobada, Rechazada, Pendiente]}
+      responses:
+        "200": {description: Solicitud actualizada}
+        "401": {description: Token requerido o inválido}
+        "403": {description: Requiere rol admin}
+        "404": {description: Solicitud no encontrada}
+    delete:
+      tags: [Adopciones]
+      summary: Eliminar una solicitud de adopción (requiere sesión)
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200": {description: Solicitud eliminada}
+        "401": {description: Token requerido o inválido}
+        "404": {description: Solicitud no encontrada}
+
+  # ==================== DONACIONES (puerto 48912) ====================
+  /donaciones:
+    servers: [{url: "http://localhost:48912"}]
+    post:
+      tags: [Donaciones]
+      summary: Registrar una donación (pública o autenticada)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [monto]
+              properties:
+                monto: {type: number, format: float}
+                id_usuario: {type: integer, nullable: true, description: "Opcional; se puede donar de forma anónima"}
+                comentario: {type: string}
+      responses:
+        "201": {description: Donación registrada}
+        "400": {description: El monto es obligatorio}
+    get:
+      tags: [Donaciones]
+      summary: Listar el historial de donaciones (solo admin)
+      responses:
+        "200": {description: Lista de donaciones}
+        "401": {description: Token requerido o inválido}
+        "403": {description: Requiere rol admin}
+
+  /donaciones/{id}:
+    servers: [{url: "http://localhost:48912"}]
+    put:
+      tags: [Donaciones]
+      summary: Editar un registro de donación (solo admin)
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                monto: {type: number, format: float}
+                comentario: {type: string}
+      responses:
+        "200": {description: Donación actualizada}
+        "401": {description: Token requerido o inválido}
+        "403": {description: Requiere rol admin}
+        "404": {description: Donación no encontrada}
+    delete:
+      tags: [Donaciones]
+      summary: Eliminar un registro de donación (solo admin)
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200": {description: Registro eliminado}
+        "401": {description: Token requerido o inválido}
+        "403": {description: Requiere rol admin}
+        "404": {description: Donación no encontrada}
+
+  # ==================== EVENTOS (puerto 48913) ====================
+  /eventos:
+    servers: [{url: "http://localhost:48913"}]
+    post:
+      tags: [Eventos]
+      summary: Crear un evento (solo admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [titulo, fecha_evento]
+              properties:
+                titulo: {type: string}
+                descripcion: {type: string}
+                fecha_evento: {type: string, format: date-time}
+                ubicacion: {type: string}
+      responses:
+        "201": {description: Evento creado}
+        "401": {description: Token requerido o inválido}
+        "403": {description: Requiere rol admin}
+    get:
+      tags: [Eventos]
+      summary: Listar eventos (público)
+      security: []
+      responses:
+        "200": {description: Lista de eventos}
+
+  /eventos/{id}:
+    servers: [{url: "http://localhost:48913"}]
+    put:
+      tags: [Eventos]
+      summary: Editar un evento (solo admin)
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                titulo: {type: string}
+                descripcion: {type: string}
+                fecha_evento: {type: string, format: date-time}
+                ubicacion: {type: string}
+      responses:
+        "200": {description: Evento actualizado}
+        "401": {description: Token requerido o inválido}
+        "403": {description: Requiere rol admin}
+        "404": {description: Evento no encontrado}
+    delete:
+      tags: [Eventos]
+      summary: Cancelar/eliminar un evento (solo admin)
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200": {description: Evento eliminado}
+        "401": {description: Token requerido o inválido}
+        "403": {description: Requiere rol admin}
+        "404": {description: Evento no encontrado}
+
+  # ==================== NOTIFICACIONES (puerto 48915) ====================
+  /notificaciones:
+    servers: [{url: "http://localhost:48915"}]
+    post:
+      tags: [Notificaciones]
+      summary: Crear una notificación (requiere sesión)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id_usuario, mensaje]
+              properties:
+                id_usuario: {type: integer}
+                mensaje: {type: string}
+      responses:
+        "201": {description: Notificación creada}
+        "401": {description: Token requerido o inválido}
+    get:
+      tags: [Notificaciones]
+      summary: Listar notificaciones del usuario autenticado
+      responses:
+        "200": {description: Lista de notificaciones}
+        "401": {description: Token requerido o inválido}
+
+  /notificaciones/{id}/leer:
+    servers: [{url: "http://localhost:48915"}]
+    put:
+      tags: [Notificaciones]
+      summary: Marcar una notificación como leída (requiere sesión)
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200": {description: Notificación marcada como leída}
+        "401": {description: Token requerido o inválido}
+        "404": {description: Notificación no encontrada}
+
+  /notificaciones/{id}:
+    servers: [{url: "http://localhost:48915"}]
+    delete:
+      tags: [Notificaciones]
+      summary: Eliminar una notificación (requiere sesión)
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: integer}}
+      responses:
+        "200": {description: Notificación eliminada}
+        "401": {description: Token requerido o inválido}
+        "404": {description: Notificación no encontrada}
+
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-  schemas:
-    Usuario:
-      type: object
-      required:
-        - id
-        - nombre
-        - apellido
-        - email
-        - rol
-        - estado
-      properties:
-        id:
-          type: integer
-          example: 1
-        nombre:
-          type: string
-          example: Ana
-        apellido:
-          type: string
-          example: Pérez
-        email:
-          type: string
-          format: email
-          example: ana@example.com
-        telefono:
-          type: string
-          nullable: true
-          example: '5551234567'
-        rol:
-          type: string
-          enum: [admin, usuario, refugio]
-          example: usuario
-        estado:
-          type: string
-          enum: [activo, inactivo, pendiente]
-          example: activo
-        fecha_registro:
-          type: string
-          format: date-time
-          example: '2026-07-29T10:00:00Z'
-
-    Mascota:
-      type: object
-      required:
-        - id
-        - nombre
-        - tipo
-        - estado
-      properties:
-        id:
-          type: integer
-          example: 10
-        nombre:
-          type: string
-          example: Max
-        tipo:
-          type: string
-          enum: [perro, gato, otro]
-          example: perro
-        raza:
-          type: string
-          nullable: true
-          example: Labrador
-        edad:
-          type: integer
-          nullable: true
-          example: 3
-        genero:
-          type: string
-          enum: [macho, hembra, otro]
-          nullable: true
-        tamano:
-          type: string
-          enum: [pequeno, mediano, grande]
-          nullable: true
-        descripcion:
-          type: string
-          nullable: true
-          example: Muy juguetón
-        estado:
-          type: string
-          enum: [disponible, pendiente, adoptada, inactiva]
-          example: disponible
-        fecha_ingreso:
-          type: string
-          format: date
-          example: '2026-07-28'
-        foto_url:
-          type: string
-          nullable: true
-          example: https://example.com/mascota.jpg
-
-    SolicitudAdopcion:
-      type: object
-      required:
-        - id
-        - mascota_id
-        - usuario_id
-        - estado
-      properties:
-        id:
-          type: integer
-          example: 1
-        mascota_id:
-          type: integer
-          example: 10
-        usuario_id:
-          type: integer
-          example: 2
-        mensaje:
-          type: string
-          example: Estoy interesado en adoptar a Max.
-        estado:
-          type: string
-          enum: [pendiente, aprobada, rechazada, cancelada]
-          example: pendiente
-        fecha_solicitud:
-          type: string
-          format: date-time
-          example: '2026-07-29T10:15:00Z'
-        fecha_respuesta:
-          type: string
-          format: date-time
-          nullable: true
-        respuesta_admin:
-          type: string
-          nullable: true
-
-    RegisterRequest:
-      type: object
-      required:
-        - nombre
-        - apellido
-        - email
-        - password
-      properties:
-        nombre:
-          type: string
-          example: Ana
-        apellido:
-          type: string
-          example: Pérez
-        email:
-          type: string
-          format: email
-          example: ana@example.com
-        password:
-          type: string
-          format: password
-          example: Password123!
-        telefono:
-          type: string
-          example: '5551234567'
-        rol:
-          type: string
-          enum: [usuario, refugio, admin]
-          default: usuario
-
-    LoginRequest:
-      type: object
-      required:
-        - email
-        - password
-      properties:
-        email:
-          type: string
-          format: email
-        password:
-          type: string
-          format: password
-
-    ForgotPasswordRequest:
-      type: object
-      required:
-        - email
-      properties:
-        email:
-          type: string
-          format: email
-
-    UpdateProfileRequest:
-      type: object
-      properties:
-        nombre:
-          type: string
-        apellido:
-          type: string
-        telefono:
-          type: string
-
-    CreateMascotaRequest:
-      type: object
-      required:
-        - nombre
-        - tipo
-        - estado
-      properties:
-        nombre:
-          type: string
-        tipo:
-          type: string
-          enum: [perro, gato, otro]
-        raza:
-          type: string
-        edad:
-          type: integer
-        genero:
-          type: string
-          enum: [macho, hembra, otro]
-        tamano:
-          type: string
-          enum: [pequeno, mediano, grande]
-        descripcion:
-          type: string
-        estado:
-          type: string
-          enum: [disponible, pendiente, adoptada, inactiva]
-        fecha_ingreso:
-          type: string
-          format: date
-        foto_url:
-          type: string
-
-    UpdateMascotaRequest:
-      type: object
-      properties:
-        nombre:
-          type: string
-        descripcion:
-          type: string
-        estado:
-          type: string
-          enum: [disponible, pendiente, adoptada, inactiva]
-        foto_url:
-          type: string
-
-    CreateSolicitudRequest:
-      type: object
-      required:
-        - mascota_id
-        - mensaje
-      properties:
-        mascota_id:
-          type: integer
-        mensaje:
-          type: string
-
-    UpdateSolicitudEstadoRequest:
-      type: object
-      required:
-        - estado
-      properties:
-        estado:
-          type: string
-          enum: [aprobada, rechazada]
-        respuesta_admin:
-          type: string
-
-    AuthResponse:
-      type: object
-      properties:
-        message:
-          type: string
-          example: Autenticación exitosa
-        token:
-          type: string
-          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-        user:
-          $ref: '#/components/schemas/Usuario'
-
-    MessageResponse:
-      type: object
-      properties:
-        message:
-          type: string
-          example: Operación realizada correctamente
-
-    ErrorResponse:
-      type: object
-      required:
-        - error
-        - message
-      properties:
-        error:
-          type: string
-          example: bad_request
-        message:
-          type: string
-          example: Los datos enviados son inválidos
-        details:
-          type: array
-          items:
-            type: string
-        timestamp:
-          type: string
-          format: date-time
-          example: '2026-07-29T10:00:00Z'
-
-    UsersListResponse:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/Usuario'
-        pagination:
-          type: object
-          properties:
-            page:
-              type: integer
-            limit:
-              type: integer
-            total:
-              type: integer
-
-    MascotasListResponse:
-      type: object
-      properties:
-        data:
-          type: array
-          items:
-            $ref: '#/components/schemas/Mascota'
-        pagination:
-          type: object
-          properties:
-            page:
-              type: integer
-            limit:
-              type: integer
-            total:
-              type: integer
+      description: >-
+        Token JWT obtenido en POST /login (servicio Usuarios). Se envía como
+        header "Authorization: Bearer <token>". El payload incluye el campo
+        "rol" ("admin" o "usuario"), usado por los endpoints protegidos.
