@@ -83,6 +83,26 @@ def listar_donaciones(usuario_actual):
     except Exception as e:
         return jsonify(error=f"Error al obtener: {str(e)}"), 500
 
+# PUT - Editar una Donación (corregir monto/comentario de un registro)
+@app.route('/donaciones/<int:id>', methods=['PUT'])
+@auth_required('admin')
+def actualizar_donacion(usuario_actual, id):
+    donacion = Donacion.query.get(id)
+    if not donacion:
+        return jsonify(error="Donación no encontrada."), 404
+
+    data = request.get_json() or {}
+    try:
+        if 'monto' in data:
+            donacion.monto = float(data.get('monto'))
+        donacion.comentario = data.get('comentario', donacion.comentario)
+
+        db.session.commit()
+        return jsonify(message="Donación actualizada correctamente.", donacion=donacion.to_dict()), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(error=f"Error al editar: {str(e)}"), 500
+
 # DELETE - Eliminar registro de donación (Logs de auditoría)
 @app.route('/donaciones/<int:id>', methods=['DELETE'])
 @auth_required('admin')
