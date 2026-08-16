@@ -1,0 +1,214 @@
+
+services:
+  # MySQL containers (one per service) with healthchecks
+  mysql_mascotas:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: mascotas_db
+      MYSQL_USER: adopta
+      MYSQL_PASSWORD: adopta
+    volumes:
+      - mysql_mascotas_data:/var/lib/mysql
+    ports:
+      - "33060:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  mysql_adopciones:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: adopciones_db
+      MYSQL_USER: adopta
+      MYSQL_PASSWORD: adopta
+    volumes:
+      - mysql_adopciones_data:/var/lib/mysql
+    ports:
+      - "33061:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  mysql_donaciones:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: donaciones_db
+      MYSQL_USER: adopta
+      MYSQL_PASSWORD: adopta
+    volumes:
+      - mysql_donaciones_data:/var/lib/mysql
+    ports:
+      - "33062:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  mysql_eventos:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: eventos_db
+      MYSQL_USER: adopta
+      MYSQL_PASSWORD: adopta
+    volumes:
+      - mysql_eventos_data:/var/lib/mysql
+    ports:
+      - "33063:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  mysql_notificaciones:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: notificaciones_db
+      MYSQL_USER: adopta
+      MYSQL_PASSWORD: adopta
+    volumes:
+      - mysql_notificaciones_data:/var/lib/mysql
+    ports:
+      - "33064:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  mysql_usuarios:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: usuarios_db
+      MYSQL_USER: adopta
+      MYSQL_PASSWORD: adopta
+    volumes:
+      - mysql_usuarios_data:/var/lib/mysql
+    ports:
+      - "33065:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # Python Flask microservicios - mount correct folders and ensure requirements.txt available
+  mascotas:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - ./db_mascotas:/app
+      - ./requirements.txt:/app/requirements.txt:ro
+    env_file:
+      - ./db_mascotas/.env.docker
+    depends_on:
+      mysql_mascotas:
+        condition: service_healthy
+    command: sh -c "pip install -r requirements.txt && python app.py"
+    ports:
+      - "48914:48914"
+
+  adopciones:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - ./db_adopciones:/app
+      - ./requirements.txt:/app/requirements.txt:ro
+    env_file:
+      - ./db_adopciones/.env.docker
+    depends_on:
+      mysql_adopciones:
+        condition: service_healthy
+    command: sh -c "pip install -r requirements.txt && python app.py"
+    ports:
+      - "48911:48911"
+
+  donaciones:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - ./db_donaciones:/app
+      - ./requirements.txt:/app/requirements.txt:ro
+    env_file:
+      - ./db_donaciones/.env.docker
+    depends_on:
+      mysql_donaciones:
+        condition: service_healthy
+    command: sh -c "pip install -r requirements.txt && python app.py"
+    ports:
+      - "48912:48912"
+
+  eventos:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - ./db_eventos:/app
+      - ./requirements.txt:/app/requirements.txt:ro
+    env_file:
+      - ./db_eventos/.env.docker
+    depends_on:
+      mysql_eventos:
+        condition: service_healthy
+    command: sh -c "pip install -r requirements.txt && python app.py"
+    ports:
+      - "48913:48913"
+
+  notificaciones:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - ./db_notificaciones:/app
+      - ./requirements.txt:/app/requirements.txt:ro
+    env_file:
+      - ./db_notificaciones/.env.docker
+    depends_on:
+      mysql_notificaciones:
+        condition: service_healthy
+    command: sh -c "pip install -r requirements.txt && python app.py"
+    ports:
+      - "48915:48915"
+
+  usuarios:
+    image: python:3.11-slim
+    working_dir: /app
+    volumes:
+      - ./Usuarios:/app
+    env_file:
+      - ./Usuarios/.env.docker
+    depends_on:
+      mysql_usuarios:
+        condition: service_healthy
+    command: sh -c "pip install -r requirements.txt && python app.py"
+    ports:
+      - "48910:48910"
+
+volumes:
+  mysql_mascotas_data:
+  mysql_adopciones_data:
+  mysql_donaciones_data:
+  mysql_eventos_data:
+  mysql_notificaciones_data:
+  mysql_usuarios_data:
