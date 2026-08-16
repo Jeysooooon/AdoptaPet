@@ -25,6 +25,11 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
+# Variables JWT
+JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'clave-secret-por-defecto-adoptapet')
+JWT_ALGORITHM = 'HS256'
+JWT_EXP_HORAS = 8
+
 # Obtener URL de base de datos desde variables de Railway
 database_url = os.getenv("DATABASE_URL") or os.getenv("MYSQL_URL") or os.getenv("MYSQL_PUBLIC_URL")
 
@@ -108,14 +113,20 @@ def home():
 
 @app.route('/registro', methods=['POST'])
 def registro():
-    data = request.get_json() or {}
-    nombre = data.get('nombre', '').strip()
-    correo = data.get('correo', '').strip().lower()
-    password = data.get('password')
+    data = request.get_json(force=True, silent=True) or {}
 
-    if not nombre or not correo or not password:
-        return jsonify(error='Nombre, correo y contraseña son obligatorios.'), 400
+    nombre = data.get('nombre') or data.get('name')
+    correo = data.get('correo') or data.get('email')
+    contrasena = data.get('contrasena') or data.get('password') or data.get('contraseña')
 
+    if nombre:
+        nombre = str(nombre).strip()
+    if correo:
+        correo = str(correo).strip().lower()
+
+    if not nombre or not correo or not contrasena:
+        return jsonify({"error": "Nombre, correo y contraseña son obligatorios."}), 400
+ 
     if not re.match(EMAIL_REGEX, correo):
         return jsonify(error='Formato de correo electrónico inválido.'), 400
 
@@ -124,7 +135,7 @@ def registro():
             return jsonify(error='El correo ya está registrado.'), 409
 
         usuario = Usuario(nombre=nombre, correo=correo)
-        usuario.password = password
+        usuario.password = contrasena
         db.session.add(usuario)
         db.session.commit()
 
@@ -141,9 +152,9 @@ def registro():
 
 @app.route('/login', methods=['POST'])
 def login():
-    data = request.get_json() or {}
-    correo = data.get('correo', '').strip().lower()
-    password = data.get('password')
+    data = request.get_json(force=True, silent=True) or {}
+    correo = (data.get('correo') or data.get('email') or '').strip().lower()
+    password = data.get('password') or data.get('contrasena') or data.get('contraseña')
 
     if not correo or not password:
         return jsonify(error='Correo y contraseña son obligatorios.'), 400
@@ -182,10 +193,10 @@ def obtener_perfil(usuario_actual, id):
 @app.route('/perfil/<int:id>', methods=['PUT'])
 @requiere_token
 def actualizar_perfil(usuario_actual, id):
-    data = request.get_json() or {}
-    nombre = data.get('nombre')
-    correo = data.get('correo')
-    password = data.get('password')
+    data = request.get_json(force=True, silent=True) or {}
+    nombre = data.get('nombre') or data.get('name')
+    correo = data.get('correo') or data.get('email')
+    password = data.get('password') or data.get('contrasena') or data.get('contraseña')
 
     try:
         usuario = db.session.get(Usuario, id)
@@ -252,8 +263,8 @@ def listar_usuarios(usuario_actual):
 
 @app.route('/recuperar-password', methods=['POST'])
 def recuperar_password():
-    data = request.get_json() or {}
-    correo = data.get('correo', '').strip().lower()
+    data = request.get_json(force=True, silent=True) or {}
+    correo = (data.get('correo') or data.get('email') or '').strip().lower()
     if not correo:
         return jsonify(error='El correo es requerido.'), 400
 
@@ -268,7 +279,10 @@ def recuperar_password():
 
 # Inicialización de tablas
 with app.app_context():
-    db.create_all()
+    try:
+        db.create_all()
+    except Exception as e:
+        logger.error(f"No se pudieron crear las tablas al iniciar: {str(e)}")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
