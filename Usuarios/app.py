@@ -10,23 +10,21 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from werkzeug.security import generate_password_hash, check_password_hash
 
-# Configuración de logs para depuración en producción
+# Configuración de logs
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 load_dotenv()
 
 app = Flask(__name__)
-
-# Configuración de CORS (Se recomienda restringir orígenes en producción)
 CORS(app)
 
-# Clave compartida para JWT
+# Configuración JWT
 JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'clave-compartida-adoptapet-2026')
 JWT_ALGORITHM = 'HS256'
 JWT_EXP_HORAS = 8
 
-# Ajuste de URL de base de datos para SQLAlchemy (postgres:// -> postgresql://)
+# Configuración de Base de Datos
 database_url = os.getenv('DATABASE_URL', 'sqlite:///usuarios.db')
 if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
@@ -36,40 +34,10 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
 
-# Helper para validación básica de correo
+# Regex para validación de correo
 EMAIL_REGEX = r'^[\w\.-]+@[\w\.-]+\.\w+$'
 
-def generar_token(usuario):
-    """Genera un JWT firmado con los datos básicos del usuario."""
-    payload = {
-        'id': usuario.id,
-        'correo': usuario.correo,
-        'rol': usuario.rol,
-        'exp': datetime.now(timezone.utc) + timedelta(hours=JWT_EXP_HORAS)
-    }
-    return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
-
-
-def requiere_token(f):
-    """Decorador para validar el JWT enviado en el header Authorization."""
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        auth_header = request.headers.get('Authorization', '')
-        if not auth_header.startswith('Bearer '):
-            return jsonify(error='Token de autenticación requerido.'), 401
-
-        token = auth_header.split(' ', 1)[1].strip()
-        try:
-            usuario_actual = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
-        except jwt.ExpiredSignatureError:
-            return jsonify(error='El token ha expirado. Inicia sesión de nuevo.'), 401
-        except jwt.InvalidTokenError:
-            return jsonify(error='Token inválido.'), 401
-
-        return f(usuario_actual, *args, **kwargs)
-    return wrapper
-
-
+# Modelo de Usuario
 class Usuario(db.Model):
     __tablename__ = 'usuarios'
 
@@ -78,6 +46,7 @@ class Usuario(db.Model):
     correo = db.Column(db.String(255), unique=True, nullable=False)
     _password = db.Column('password', db.String(255), nullable=False)
     rol = db.Column(db.String(50), nullable=False, default='usuario')
+    creado_en = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     @property
     def password(self):
@@ -95,9 +64,41 @@ class Usuario(db.Model):
             'id': self.id,
             'nombre': self.nombre,
             'correo': self.correo,
-            'rol': self.rol,
+            'rol': self.rol
         }
 
+# Helpers JWT
+def generar_token(usuario):
+    payload = {
+        'id': usuario.id,
+        'correo': usuario.correo,
+        'rol': usuario.rol,
+        'exp': datetime.now(timezone.utc) + timedelta(hours=JWT_EXP_HORAS)
+    }
+    return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+
+def requiere_token(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return jsonify(error='Token de autenticación requerido.'), 401
+
+        token = auth_header.split(' ', 1)[1].strip()
+        try:
+            usuario_actual = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        except jwt.ExpiredSignatureError:
+            return jsonify(error='El token ha expirado. Inicia sesión de nuevo.'), 401
+        except jwt.InvalidTokenError:
+            return jsonify(error='Token inválido.'), 401
+
+        return f(usuario_actual, *args, **kwargs)
+    return wrapper
+
+# Endpoints
+@app.route('/')
+def home():
+    return jsonify(status="Microservicio de Usuarios Corriendo Exitosamente"), 200
 
 @app.route('/registro', methods=['POST'])
 def registro():
@@ -132,7 +133,6 @@ def registro():
         logger.error(f"Error en registro: {str(e)}")
         return jsonify(error='Error interno al crear el usuario.'), 500
 
-
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json() or {}
@@ -153,22 +153,18 @@ def login():
         logger.error(f"Error en login: {str(e)}")
         return jsonify(error='Error interno al iniciar sesión.'), 500
 
-
 @app.route('/logout', methods=['POST'])
 def logout():
-    # En arquitecturas JWT stateless, la desconexión se gestiona en el frontend eliminando el token.
     return jsonify(message='Cierre de sesión exitoso en cliente.'), 200
-
 
 @app.route('/perfil/<int:id>', methods=['GET'])
 @requiere_token
 def obtener_perfil(usuario_actual, id):
     try:
-        # Validación de permisos: un usuario solo consulta su perfil o lo hace un admin
         if usuario_actual['id'] != id and usuario_actual['rol'] != 'admin':
             return jsonify(error='Acceso no autorizado.'), 403
 
-        usuario = Usuario.query.get(id)
+        usuario = db.session.get(Usuario, id)
         if not usuario:
             return jsonify(error='Usuario no encontrado.'), 404
 
@@ -176,7 +172,6 @@ def obtener_perfil(usuario_actual, id):
     except Exception as e:
         logger.error(f"Error al obtener perfil: {str(e)}")
         return jsonify(error='Error interno al obtener el perfil.'), 500
-
 
 @app.route('/perfil/<int:id>', methods=['PUT'])
 @requiere_token
@@ -187,7 +182,7 @@ def actualizar_perfil(usuario_actual, id):
     password = data.get('password')
 
     try:
-        usuario = Usuario.query.get(id)
+        usuario = db.session.get(Usuario, id)
         if not usuario:
             return jsonify(error='Usuario no encontrado.'), 404
 
@@ -217,12 +212,11 @@ def actualizar_perfil(usuario_actual, id):
         logger.error(f"Error al actualizar perfil: {str(e)}")
         return jsonify(error='Error interno al actualizar el perfil.'), 500
 
-
 @app.route('/usuarios/<int:id>', methods=['DELETE'])
 @requiere_token
 def eliminar_usuario(usuario_actual, id):
     try:
-        usuario = Usuario.query.get(id)
+        usuario = db.session.get(Usuario, id)
         if not usuario:
             return jsonify(error='Usuario no encontrado.'), 404
 
@@ -237,7 +231,6 @@ def eliminar_usuario(usuario_actual, id):
         logger.error(f"Error al eliminar usuario: {str(e)}")
         return jsonify(error='Error interno al eliminar el usuario.'), 500
 
-
 @app.route('/usuarios', methods=['GET'])
 @requiere_token
 def listar_usuarios(usuario_actual):
@@ -251,7 +244,6 @@ def listar_usuarios(usuario_actual):
         logger.error(f"Error al listar usuarios: {str(e)}")
         return jsonify(error='Error interno al obtener usuarios.'), 500
 
-
 @app.route('/recuperar-password', methods=['POST'])
 def recuperar_password():
     data = request.get_json() or {}
@@ -262,23 +254,16 @@ def recuperar_password():
     try:
         usuario = Usuario.query.filter_by(correo=correo).first()
         if usuario:
-            # Integrar aquí servicio de envío de correos (ej. SendGrid, Mailgun)
-            pass
+            pass # Integrar lógica de envío de correo
         return jsonify(message='Si el correo existe, se han enviado instrucciones para recuperar la contraseña.'), 200
     except Exception as e:
         logger.error(f"Error en recuperar-password: {str(e)}")
         return jsonify(error='Error interno al procesar la solicitud.'), 500
 
-
-@app.route('/')
-def home():
-    return {"status": "Microservicio de Usuarios Corriendo Exitosamente"}, 200
-
-
-# Creación de tablas fuera del bloque main para garantizar disponibilidad bajo WSGI/Gunicorn
+# Inicialización de tablas
 with app.app_context():
     db.create_all()
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 48910))
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
