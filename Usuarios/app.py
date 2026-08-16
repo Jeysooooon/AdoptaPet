@@ -2,6 +2,9 @@ import os
 import re
 import logging
 import jwt
+import pymysql
+pymysql.install_as_MySQLdb()
+
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from flask import Flask, request, jsonify
@@ -24,17 +27,19 @@ JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'clave-compartida-adoptapet-2026')
 JWT_ALGORITHM = 'HS256'
 JWT_EXP_HORAS = 8
 
-# 1. Cargar .env asegurando la ruta absoluta del archivo
-basedir = os.path.abspath(os.path.dirname(__file__))
-load_dotenv(os.path.join(basedir, '.env'))
+# Configuración de Base de Datos con respaldo para variables de MySQL en Railway
+database_url = os.getenv("DATABASE_URL") or os.getenv("MYSQL_URL") or os.getenv("MYSQL_PUBLIC_URL")
 
-# 2. Manejo robusto: Si os.getenv devuelve None o una cadena vacía (""), usa el respaldo
-database_url = os.getenv('DATABASE_URL') or 'sqlite:///usuarios.db'
+if not database_url:
+    raise RuntimeError("No se encontró variable de conexión (DATABASE_URL o MYSQL_URL no configurada en Railway).")
+
+if database_url.startswith("mysql://"):
+    database_url = database_url.replace("mysql://", "mysql+pymysql://", 1)
 
 if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = database_url.strip()
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
