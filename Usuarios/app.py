@@ -4,7 +4,8 @@ import logging
 import jwt
 import pymysql
 
-# Le enseña a SQLAlchemy a usar PyMySQL en lugar de MySQLdb
+# SQLAlchemy usa el nombre MySQLdb internamente; esta compatibilidad permite
+# usar PyMySQL sin requerir el paquete mysqlclient en el entorno.
 pymysql.install_as_MySQLdb()
 
 from datetime import datetime, timedelta, timezone

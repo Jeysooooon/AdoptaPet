@@ -1,6 +1,7 @@
 import os
 import requests  # Para comunicarse con otros servicios
 import jwt
+import pymysql
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
@@ -8,15 +9,27 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from auth_utils import auth_required
 
+# SQLAlchemy intenta importar MySQLdb por compatibilidad; PyMySQL debe estar
+# disponible como backend para cadenas mysql://
+pymysql.install_as_MySQLdb()
+
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'key-segura-adopciones')
 
-database_url = os.getenv('DATABASE_URL')
+def normalize_database_url(database_url):
+    if not database_url:
+        return database_url
+    database_url = database_url.strip()
+    if database_url.startswith('mysql://'):
+        return database_url.replace('mysql://', 'mysql+pymysql://', 1)
+    return database_url
+
+database_url = normalize_database_url(os.getenv('DATABASE_URL'))
 if database_url:
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url.strip()
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -138,33 +151,30 @@ def actualizar_solicitud(usuario_actual, id):
         # Si se aprueba, cambiamos automáticamente la mascota a "Adoptado"
         if nuevo_estado == 'Aprobado':
             try:
-                        # Usar token de servicio para autenticar la petición hacia Mascotas
-                        service_token = generate_service_token()
-                        requests.put(
-                            f"{MASCOTAS_SERVICE_URL}/{solicitud.id_mascota}",
-                            json={"estado": "Adoptado"},
-                            headers={'Authorization': f'Bearer {service_token}'},
-                            timeout=3
-                        )
-                    except requests.exceptions.RequestException:
-                        pass
+                service_token = generate_service_token()
+                requests.put(
+                    f"{MASCOTAS_SERVICE_URL}/{solicitud.id_mascota}",
+                    json={"estado": "Adoptado"},
+                    headers={'Authorization': f'Bearer {service_token}'},
+                    timeout=3
+                )
+            except requests.exceptions.RequestException:
+                pass
 
-                # Enviamos notificación al usuario de forma automática
-                try:
-                    mensaje_notif = f"Tu solicitud de adopción para la mascota #{solicitud.id_mascota} ha sido {nuevo_estado}."
-                    # Enviar la notificación usando un token de servicio para autenticarse
-                    service_token = generate_service_token()
-                    requests.post(
-                        NOTIFICACIONES_SERVICE_URL,
-                        json={
-                            "id_usuario": solicitud.id_usuario,
-                            "mensaje": mensaje_notif
-                        },
-                        headers={'Authorization': f'Bearer {service_token}'},
-                        timeout=3
-                    )
-                except requests.exceptions.RequestException:
-                    pass
+            try:
+                mensaje_notif = f"Tu solicitud de adopción para la mascota #{solicitud.id_mascota} ha sido {nuevo_estado}."
+                service_token = generate_service_token()
+                requests.post(
+                    NOTIFICACIONES_SERVICE_URL,
+                    json={
+                        "id_usuario": solicitud.id_usuario,
+                        "mensaje": mensaje_notif
+                    },
+                    headers={'Authorization': f'Bearer {service_token}'},
+                    timeout=3
+                )
+            except requests.exceptions.RequestException:
+                pass
 
         return jsonify(message="Solicitud procesada correctamente.", solicitud=solicitud.to_dict()), 200
     except Exception as e:

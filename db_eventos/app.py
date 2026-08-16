@@ -1,9 +1,12 @@
 import os
+import pymysql
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from dotenv import load_dotenv
 from auth_utils import auth_required
+
+pymysql.install_as_MySQLdb()
 
 load_dotenv()
 
@@ -11,9 +14,17 @@ app = Flask(__name__)
 CORS(app)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'key-segura-eventos')
 
-database_url = os.getenv('DATABASE_URL')
+def normalize_database_url(database_url):
+    if not database_url:
+        return database_url
+    database_url = database_url.strip()
+    if database_url.startswith('mysql://'):
+        return database_url.replace('mysql://', 'mysql+pymysql://', 1)
+    return database_url
+
+database_url = normalize_database_url(os.getenv('DATABASE_URL'))
 if database_url:
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url.strip()
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
