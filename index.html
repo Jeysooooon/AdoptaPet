@@ -163,10 +163,11 @@
                                         <th class="p-3">Donante ID</th>
                                         <th class="p-3">Monto</th>
                                         <th class="p-3">Comentario</th>
+                                        <th class="p-3">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tablaDonaciones" class="divide-y divide-slate-100">
-                                    <tr><td colspan="4" class="p-4 text-center text-slate-400">Cargando donaciones...</td></tr>
+                                    <tr><td colspan="5" class="p-4 text-center text-slate-400">Cargando donaciones...</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -244,6 +245,31 @@
                 <div class="pt-4 flex gap-3 justify-end border-t">
                     <button type="button" onclick="toggleModal('modal-login', false)" class="px-4 py-2 text-slate-500 hover:text-slate-700 font-bold">Cancelar</button>
                     <button type="submit" class="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition-all shadow-md">Iniciar Sesión</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 💰 MODAL: EDITAR DONACIÓN (solo admin) -->
+    <div id="modal-editar-donacion" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
+            <header class="p-6 bg-slate-50 border-b flex justify-between items-center">
+                <h3 class="text-lg font-bold text-slate-800">✏️ Editar Donación</h3>
+                <button onclick="toggleModal('modal-editar-donacion', false)" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </header>
+            <form id="formEditarDonacion" class="p-6 space-y-4">
+                <input type="hidden" id="editDonId">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Monto ($)</label>
+                    <input type="number" step="0.01" id="editDonMonto" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Comentario</label>
+                    <textarea id="editDonComentario" class="w-full px-3 py-2 border rounded-xl bg-slate-50 h-20"></textarea>
+                </div>
+                <div class="pt-4 flex gap-3 justify-end border-t">
+                    <button type="button" onclick="toggleModal('modal-editar-donacion', false)" class="px-4 py-2 text-slate-500 hover:text-slate-700 font-bold">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold transition-all shadow-md">Guardar Cambios</button>
                 </div>
             </form>
         </div>
@@ -630,28 +656,96 @@
             }
         });
 
+        // Devuelve true si el token guardado pertenece a un usuario con rol admin
+        function esAdmin() {
+            const token = localStorage.getItem('token');
+            if (!token) return false;
+            const payload = parseJwt(token) || {};
+            return payload.rol === 'admin';
+        }
+
         async function cargarHistorialDonaciones() {
             const tbody = document.getElementById('tablaDonaciones');
+            const admin = esAdmin();
             try {
-                const res = await fetch(`http://localhost:${PORTS.donaciones}/donaciones`);
+                // El GET de donaciones requiere token de admin, por eso usamos apiFetch (agrega el Bearer token)
+                const res = await apiFetch(`http://localhost:${PORTS.donaciones}/donaciones`);
                 const data = await res.json();
                 if (res.ok && data.donaciones.length > 0) {
                     tbody.innerHTML = "";
                     data.donaciones.forEach(item => {
+                        const acciones = admin ? `
+                            <button onclick='abrirEditarDonacion(${item.id_donacion}, ${item.monto}, ${JSON.stringify(item.comentario || "")})' class="text-amber-600 hover:text-amber-800 font-semibold mr-3">Editar</button>
+                            <button onclick="eliminarDonacion(${item.id_donacion})" class="text-rose-600 hover:text-rose-800 font-semibold">Eliminar</button>
+                        ` : `<span class="text-slate-300">—</span>`;
                         tbody.innerHTML += `
                             <tr>
-                                <td class="p-3 font-semibold text-slate-500">#${item.id}</td>
+                                <td class="p-3 font-semibold text-slate-500">#${item.id_donacion}</td>
                                 <td class="p-3">Usuario #${item.id_usuario || 'Anónimo'}</td>
                                 <td class="p-3 font-bold text-slate-800">$${parseFloat(item.monto).toFixed(2)}</td>
                                 <td class="p-3 text-slate-500">${item.comentario || 'Sin comentarios'}</td>
+                                <td class="p-3">${acciones}</td>
                             </tr>
                         `;
                     });
+                } else if (res.ok) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">No hay donaciones registradas aún.</td></tr>`;
+                } else if (res.status === 401 || res.status === 403) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Inicia sesión como administrador para ver el historial de donaciones.</td></tr>`;
                 } else {
-                    tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-slate-400">No hay donaciones registradas aún.</td></tr>`;
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">${data.error || 'Error al cargar donaciones.'}</td></tr>`;
                 }
             } catch (e) {
-                tbody.innerHTML = `<tr><td colspan="4" class="p-4 text-center text-red-500">Servicio de Donaciones inactivo.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-red-500">Servicio de Donaciones inactivo.</td></tr>`;
+            }
+        }
+
+        // Abre el modal de edición precargado con los datos de la donación
+        function abrirEditarDonacion(id, monto, comentario) {
+            document.getElementById('editDonId').value = id;
+            document.getElementById('editDonMonto').value = monto;
+            document.getElementById('editDonComentario').value = comentario;
+            toggleModal('modal-editar-donacion', true);
+        }
+
+        document.getElementById('formEditarDonacion').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('editDonId').value;
+            const payload = {
+                monto: parseFloat(document.getElementById('editDonMonto').value),
+                comentario: document.getElementById('editDonComentario').value
+            };
+            try {
+                const res = await apiFetch(`http://localhost:${PORTS.donaciones}/donaciones/${id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    showNotification('Donación actualizada correctamente.');
+                    toggleModal('modal-editar-donacion', false);
+                    cargarHistorialDonaciones();
+                } else {
+                    showNotification(data.error || 'Error al actualizar donación.', true);
+                }
+            } catch (err) {
+                showNotification('Fallo al conectar con el servicio de Donaciones.', true);
+            }
+        });
+
+        async function eliminarDonacion(id) {
+            if (!confirm('¿Eliminar este registro de donación? Esta acción no se puede deshacer.')) return;
+            try {
+                const res = await apiFetch(`http://localhost:${PORTS.donaciones}/donaciones/${id}`, { method: 'DELETE' });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    showNotification('Donación eliminada.');
+                    cargarHistorialDonaciones();
+                } else {
+                    showNotification(data.error || 'Error al eliminar donación.', true);
+                }
+            } catch (err) {
+                showNotification('Fallo al conectar con el servicio de Donaciones.', true);
             }
         }
 
