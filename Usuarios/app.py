@@ -24,8 +24,13 @@ JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'clave-compartida-adoptapet-2026')
 JWT_ALGORITHM = 'HS256'
 JWT_EXP_HORAS = 8
 
-# Configuración de Base de Datos
-database_url = os.getenv('DATABASE_URL', 'sqlite:///usuarios.db')
+# 1. Cargar .env asegurando la ruta absoluta del archivo
+basedir = os.path.abspath(os.path.dirname(__file__))
+load_dotenv(os.path.join(basedir, '.env'))
+
+# 2. Manejo robusto: Si os.getenv devuelve None o una cadena vacía (""), usa el respaldo
+database_url = os.getenv('DATABASE_URL') or 'sqlite:///usuarios.db'
+
 if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 
