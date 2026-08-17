@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>AdoptaPet - Dashboard</title>
+
+    <link
+        rel="stylesheet"
+        href="css/style.css"
+    >
+
+</head>
+
+<body>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/common.js"></script>
+
+<script>
+requireAuth();
+</script>
+
+
+<div class="sidebar">
+
+    <h2>🐾</h2>
+
+    <a href="dashboard.html">
+        🏠 Dashboard
+    </a>
+
+    <a href="mascotas.html">
+        🐶 Mascotas
+    </a>
+
+    <a href="adopciones.html">
+        ❤️ Adopciones
+    </a>
+
+    <a href="eventos.html">
+        📅 Eventos
+    </a>
+
+    <a href="donaciones.html">
+        💰 Donaciones
+    </a>
+
+    <a href="reporte.html">
+        📊 Reporte
+    </a>
+
+</div>
+
+
+<div class="main">
+
+    <div class="topbar">
+
+        <h2>Dashboard</h2>
+
+        <div>
+            Hola,
+            <strong id="userName">
+                Usuario
+            </strong>
+
+            <button
+                id="logoutButton"
+                class="btn btn-danger"
+            >
+                Cerrar sesión
+            </button>
+        </div>
+
+    </div>
+
+
+    <div class="content">
+
+        <div id="message" class="message"></div>
+
+
+        <div class="cards">
+
+            <div class="card">
+
+                <div>
+                    🐶 Mascotas
+                </div>
+
+                <div
+                    id="countMascotas"
+                    class="stat-number"
+                >
+                    0
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <div>
+                    ❤️ Adopciones
+                </div>
+
+                <div
+                    id="countAdopciones"
+                    class="stat-number"
+                >
+                    0
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <div>
+                    📅 Eventos
+                </div>
+
+                <div
+                    id="countEventos"
+                    class="stat-number"
+                >
+                    0
+                </div>
+
+            </div>
+
+
+            <div class="card">
+
+                <div>
+                    💰 Donaciones
+                </div>
+
+                <div
+                    id="countDonaciones"
+                    class="stat-number"
+                >
+                    0
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="card">
+
+            <h2>
+                Bienvenido a AdoptaPet 🐾
+            </h2>
+
+            <p>
+                Desde este panel puedes administrar
+                mascotas, solicitudes de adopción,
+                eventos y donaciones.
+            </p>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+setupShell();
+
+
+async function loadDashboard() {
+
+    try {
+
+        const mascotas =
+            await api(
+                API.MASCOTAS +
+                "/mascotas"
+            );
+
+        const adopciones =
+            await api(
+                API.ADOPCIONES +
+                "/adopciones"
+            );
+
+        const eventos =
+            await api(
+                API.EVENTOS +
+                "/eventos"
+            );
+
+        const donaciones =
+            await api(
+                API.DONACIONES +
+                "/donaciones"
+            );
+
+
+        document.getElementById(
+            "countMascotas"
+        ).textContent =
+            mascotas.mascotas.length;
+
+
+        document.getElementById(
+            "countAdopciones"
+        ).textContent =
+            adopciones.solicitudes.length;
+
+
+        document.getElementById(
+            "countEventos"
+        ).textContent =
+            eventos.eventos.length;
+
+
+        document.getElementById(
+            "countDonaciones"
+        ).textContent =
+            donaciones.donaciones.length;
+
+    } catch (error) {
+
+        showMessage(
+            error.message,
+            "error"
+        );
+
+    }
+
+}
+
+
+loadDashboard();
+
+</script>
+
+</body>
+</html>

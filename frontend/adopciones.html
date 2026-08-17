@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>AdoptaPet - Adopciones</title>
+
+    <link
+        rel="stylesheet"
+        href="css/style.css"
+    >
+
+</head>
+
+<body>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/common.js"></script>
+
+<script>
+requireAuth();
+</script>
+
+
+<div class="sidebar">
+
+    <h2>🐾</h2>
+
+    <a href="dashboard.html">🏠 Dashboard</a>
+    <a href="mascotas.html">🐶 Mascotas</a>
+    <a href="adopciones.html">❤️ Adopciones</a>
+    <a href="eventos.html">📅 Eventos</a>
+    <a href="donaciones.html">💰 Donaciones</a>
+    <a href="reporte.html">📊 Reporte</a>
+
+</div>
+
+
+<div class="main">
+
+    <div class="topbar">
+
+        <h2>Adopciones</h2>
+
+        <div>
+
+            <span id="userName"></span>
+
+            <button
+                id="logoutButton"
+                class="btn btn-danger"
+            >
+                Cerrar sesión
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <div class="content">
+
+        <div id="message" class="message"></div>
+
+
+        <div class="card">
+
+            <h2>Nueva solicitud de adopción</h2>
+
+            <form id="adoptionForm">
+
+                <div class="form-group">
+
+                    <label>
+                        Mascota disponible
+                    </label>
+
+                    <select
+                        id="id_mascota"
+                        required
+                    >
+                        <option value="">
+                            Cargando mascotas...
+                        </option>
+                    </select>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>
+                        Motivo de adopción
+                    </label>
+
+                    <textarea
+                        id="motivo_adopcion"
+                        required
+                    ></textarea>
+
+                </div>
+
+
+                <button
+                    class="btn btn-primary"
+                    type="submit"
+                >
+                    Enviar solicitud
+                </button>
+
+            </form>
+
+        </div>
+
+
+        <br>
+
+
+        <div class="card">
+
+            <h2>
+                Solicitudes de adopción
+            </h2>
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>ID</th>
+                            <th>Usuario</th>
+                            <th>Mascota</th>
+                            <th>Motivo</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody
+                        id="adoptionsTable"
+                    ></tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+setupShell();
+
+
+async function loadPets() {
+
+    try {
+
+        const data =
+            await api(
+                API.MASCOTAS +
+                "/mascotas?estado=Disponible"
+            );
+
+        const select =
+            document.getElementById(
+                "id_mascota"
+            );
+
+
+        if (
+            !data.mascotas ||
+            data.mascotas.length === 0
+        ) {
+
+            select.innerHTML =
+                `<option value="">
+                    No hay mascotas disponibles
+                </option>`;
+
+            return;
+        }
+
+
+        select.innerHTML =
+            `<option value="">
+                Selecciona una mascota
+            </option>` +
+            data.mascotas.map(
+                pet => `
+                    <option value="${pet.id_mascota}">
+                        ${escapeHtml(pet.nombre)}
+                        -
+                        ${escapeHtml(pet.especie)}
+                    </option>
+                `
+            ).join("");
+
+    } catch (error) {
+
+        showMessage(
+            error.message,
+            "error"
+        );
+
+    }
+
+}
+
+
+async function loadAdoptions() {
+
+    try {
+
+        const data =
+            await api(
+                API.ADOPCIONES +
+                "/adopciones"
+            );
+
+        const table =
+            document.getElementById(
+                "adoptionsTable"
+            );
+
+
+        table.innerHTML =
+            data.solicitudes.map(
+                item => `
+
+                <tr>
+
+                    <td>
+                        ${item.id_solicitud}
+                    </td>
+
+                    <td>
+                        ${item.id_usuario}
+                    </td>
+
+                    <td>
+                        ${item.id_mascota}
+                    </td>
+
+                    <td>
+                        ${escapeHtml(
+                            item.motivo_adopcion
+                        )}
+                    </td>
+
+                    <td>
+                        <span class="badge ${
+                            item.estado === "Aprobado"
+                            ? "badge-success"
+                            : item.estado === "Rechazado"
+                            ? "badge-danger"
+                            : "badge-warning"
+                        }">
+                            ${escapeHtml(
+                                item.estado
+                            )}
+                        </span>
+                    </td>
+
+                    <td>
+
+                        ${
+                            item.estado === "Pendiente"
+                            ? `
+
+                                <div class="actions">
+
+                                    <button
+                                        class="btn btn-success"
+                                        onclick="changeStatus(
+                                            ${item.id_solicitud},
+                                            'Aprobado'
+                                        )"
+                                    >
+                                        Aprobar
+                                    </button>
+
+                                    <button
+                                        class="btn btn-danger"
+                                        onclick="changeStatus(
+                                            ${item.id_solicitud},
+                                            'Rechazado'
+                                        )"
+                                    >
+                                        Rechazar
+                                    </button>
+
+                                </div>
+
+                            `
+                            :
+                            "Procesada"
+                        }
+
+                    </td>
+
+                </tr>
+
+                `
+            ).join("");
+
+    } catch (error) {
+
+        showMessage(
+            error.message,
+            "error"
+        );
+
+    }
+
+}
+
+
+document
+    .getElementById("adoptionForm")
+    .addEventListener(
+        "submit",
+        async function(event) {
+
+            event.preventDefault();
+
+
+            const user =
+                getUser();
+
+            if (!user) {
+
+                showMessage(
+                    "No existe una sesión activa.",
+                    "error"
+                );
+
+                return;
+            }
+
+
+            const data = {
+
+                id_usuario:
+                    user.id,
+
+                id_mascota:
+                    Number(
+                        document.getElementById(
+                            "id_mascota"
+                        ).value
+                    ),
+
+                motivo_adopcion:
+                    document.getElementById(
+                        "motivo_adopcion"
+                    ).value.trim()
+
+            };
+
+
+            try {
+
+                await api(
+                    API.ADOPCIONES +
+                    "/adopciones",
+                    {
+                        method: "POST",
+                        body:
+                            JSON.stringify(data)
+                    }
+                );
+
+
+                showMessage(
+                    "Solicitud enviada correctamente."
+                );
+
+
+                document
+                    .getElementById(
+                        "adoptionForm"
+                    )
+                    .reset();
+
+
+                loadAdoptions();
+
+            } catch (error) {
+
+                showMessage(
+                    error.message,
+                    "error"
+                );
+
+            }
+
+        }
+    );
+
+
+async function changeStatus(
+    id,
+    status
+) {
+
+    if (
+        !confirm(
+            "¿Confirmas cambiar el estado a " +
+            status +
+            "?"
+        )
+    ) {
+        return;
+    }
+
+
+    try {
+
+        await api(
+            API.ADOPCIONES +
+            "/adopciones/" +
+            id,
+            {
+                method: "PUT",
+
+                body:
+                    JSON.stringify({
+                        estado: status
+                    })
+            }
+        );
+
+
+        showMessage(
+            "Solicitud actualizada."
+        );
+
+
+        loadAdoptions();
+
+        loadPets();
+
+    } catch (error) {
+
+        showMessage(
+            error.message,
+            "error"
+        );
+
+    }
+
+}
+
+
+loadPets();
+loadAdoptions();
+
+</script>
+
+</body>
+</html>

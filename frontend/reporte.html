@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>AdoptaPet - Detalle</title>
+
+    <link
+        rel="stylesheet"
+        href="css/style.css"
+    >
+
+</head>
+
+<body>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/common.js"></script>
+
+<script>
+requireAuth();
+</script>
+
+
+<div class="sidebar">
+
+    <h2>🐾</h2>
+
+    <a href="dashboard.html">🏠 Dashboard</a>
+    <a href="mascotas.html">🐶 Mascotas</a>
+    <a href="adopciones.html">❤️ Adopciones</a>
+    <a href="eventos.html">📅 Eventos</a>
+    <a href="donaciones.html">💰 Donaciones</a>
+    <a href="reporte.html">📊 Reporte</a>
+
+</div>
+
+
+<div class="main">
+
+    <div class="topbar">
+
+        <h2>
+            Detalle de mascota
+        </h2>
+
+        <div>
+
+            <span id="userName"></span>
+
+            <button
+                id="logoutButton"
+                class="btn btn-danger"
+            >
+                Cerrar sesión
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <div class="content">
+
+        <div id="message" class="message"></div>
+
+
+        <div
+            id="petDetail"
+            class="card"
+        >
+            Cargando...
+        </div>
+
+
+        <br>
+
+
+        <div class="card">
+
+            <h2>
+                Solicitudes relacionadas
+            </h2>
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>ID</th>
+                            <th>Usuario</th>
+                            <th>Mascota</th>
+                            <th>Motivo</th>
+                            <th>Estado</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody
+                        id="requestsTable"
+                    ></tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+setupShell();
+
+
+const params =
+    new URLSearchParams(
+        window.location.search
+    );
+
+
+const petId =
+    params.get("id");
+
+
+async function loadReport() {
+
+    if (!petId) {
+
+        showMessage(
+            "No se especificó una mascota.",
+            "error"
+        );
+
+        return;
+    }
+
+
+    try {
+
+        const pet =
+            await api(
+                API.MASCOTAS +
+                "/mascotas/" +
+                petId
+            );
+
+
+        const detail =
+            document.getElementById(
+                "petDetail"
+            );
+
+
+        const image =
+            pet.foto_url ||
+            "https://placehold.co/700x400?text=AdoptaPet";
+
+
+        detail.innerHTML = `
+
+            <div class="grid">
+
+                <div>
+
+                    <img
+                        src="${escapeHtml(image)}"
+                        alt="${escapeHtml(pet.nombre)}"
+                        style="
+                            width:100%;
+                            border-radius:12px;
+                            max-height:400px;
+                            object-fit:cover;
+                        "
+                        onerror="this.src='https://placehold.co/700x400?text=Sin+imagen'"
+                    >
+
+                </div>
+
+
+                <div>
+
+                    <h1>
+                        ${escapeHtml(pet.nombre)}
+                    </h1>
+
+                    <p>
+                        <strong>ID:</strong>
+                        ${pet.id_mascota}
+                    </p>
+
+                    <p>
+                        <strong>Especie:</strong>
+                        ${escapeHtml(pet.especie)}
+                    </p>
+
+                    <p>
+                        <strong>Raza:</strong>
+                        ${escapeHtml(pet.raza)}
+                    </p>
+
+                    <p>
+                        <strong>Edad:</strong>
+                        ${pet.edad_meses} meses
+                    </p>
+
+                    <p>
+                        <strong>Tamaño:</strong>
+                        ${escapeHtml(pet.tamaño)}
+                    </p>
+
+                    <p>
+                        <strong>Estado:</strong>
+                        ${escapeHtml(pet.estado)}
+                    </p>
+
+                    <p>
+                        <strong>Descripción:</strong>
+                    </p>
+
+                    <p>
+                        ${escapeHtml(pet.descripcion)}
+                    </p>
+
+                    <button
+                        class="btn btn-primary"
+                        onclick="location.href='mascotas.html'"
+                    >
+                        Volver a mascotas
+                    </button>
+
+                </div>
+
+            </div>
+
+        `;
+
+
+        const adoptionData =
+            await api(
+                API.ADOPCIONES +
+                "/adopciones"
+            );
+
+
+        const related =
+            adoptionData.solicitudes
+                .filter(
+                    x =>
+                        Number(x.id_mascota)
+                        === Number(petId)
+                );
+
+
+        const table =
+            document.getElementById(
+                "requestsTable"
+            );
+
+
+        if (related.length === 0) {
+
+            table.innerHTML = `
+                <tr>
+                    <td colspan="5">
+                        No existen solicitudes
+                        para esta mascota.
+                    </td>
+                </tr>
+            `;
+
+            return;
+        }
+
+
+        table.innerHTML =
+            related.map(
+                item => `
+
+                <tr>
+
+                    <td>
+                        ${item.id_solicitud}
+                    </td>
+
+                    <td>
+                        ${item.id_usuario}
+                    </td>
+
+                    <td>
+                        ${item.id_mascota}
+                    </td>
+
+                    <td>
+                        ${escapeHtml(
+                            item.motivo_adopcion
+                        )}
+                    </td>
+
+                    <td>
+                        <span class="badge ${
+                            item.estado === "Aprobado"
+                            ? "badge-success"
+                            : item.estado === "Rechazado"
+                            ? "badge-danger"
+                            : "badge-warning"
+                        }">
+                            ${escapeHtml(
+                                item.estado
+                            )}
+                        </span>
+                    </td>
+
+                </tr>
+
+            `
+            ).join("");
+
+    } catch (error) {
+
+        showMessage(
+            error.message,
+            "error"
+        );
+
+        document.getElementById(
+            "petDetail"
+        ).innerHTML =
+            "<p>No se pudo cargar la información.</p>";
+
+    }
+
+}
+
+
+loadReport();
+
+</script>
+
+</body>
+</html>
