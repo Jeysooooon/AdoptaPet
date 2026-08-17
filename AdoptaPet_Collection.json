@@ -1,0 +1,188 @@
+{
+  "info": {
+    "name": "AdoptaPet API - Test Suite Completa",
+    "description": "Colección de pruebas para el proyecto AdoptaPet agrupada por Sprints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Sprint 2 - Autenticación y Usuarios",
+      "item": [
+        {
+          "name": "1. Registro Adoptante",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre_completo\": \"Juan Perez\",\n  \"email\": \"{{adoptante_email}}\",\n  \"password\": \"{{adoptante_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "2. Login Admin (Genera Token Admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.access_token) {",
+                  "    pm.environment.set('admin_token', jsonData.access_token);",
+                  "    console.log('Admin Token guardado correctamente');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{admin_email}}\",\n  \"password\": \"{{admin_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "3. Login Adoptante (Genera Token Adoptante)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.access_token) {",
+                  "    pm.environment.set('adoptante_token', jsonData.access_token);",
+                  "    console.log('Adoptante Token guardado correctamente');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adoptante_email}}\",\n  \"password\": \"{{adoptante_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "4. Ver Perfil (Adoptante)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adoptante_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/users/profile",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "users", "profile"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sprint 3 - Mascotas y Solicitudes",
+      "item": [
+        {
+          "name": "1. Crear Mascota (Solo Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Firulais\",\n  \"especie\": \"Perro\",\n  \"raza\": \"Mestizo\",\n  \"edad_meses\": 12,\n  \"tamaño\": \"Mediano\",\n  \"descripcion\": \"Perro rescato muy juguetón y sano.\",\n  \"foto_url\": \"https://ejemplo.com/foto.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/mascotas",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "mascotas"]
+            }
+          }
+        },
+        {
+          "name": "2. Consultar Catálogo de Mascotas (Público)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/mascotas?especie=Perro",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "mascotas"],
+              "query": [
+                { "key": "especie", "value": "Perro" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Enviar Solicitud de Adopción (Adoptante)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adoptante_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"id_mascota\": {{mascota_id}},\n  \"motivo_adopcion\": \"Cuento con espacio patio amplio y experiencia cuidando perros.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/solicitudes",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "solicitudes"]
+            }
+          }
+        },
+        {
+          "name": "4. Aprobar Solicitud (Solo Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{admin_token}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"aprobada\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/solicitudes/{{solicitud_id}}/estado",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "solicitudes", "{{solicitud_id}}", "estado"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,9 +1,13 @@
 import os
+import pymysql
 from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from dotenv import load_dotenv
+from auth_utils import auth_required
+
+pymysql.install_as_MySQLdb()
 
 load_dotenv()
 
@@ -11,9 +15,17 @@ app = Flask(__name__)
 CORS(app)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'key-segura-donaciones')
 
-database_url = os.getenv('DATABASE_URL')
+def normalize_database_url(database_url):
+    if not database_url:
+        return database_url
+    database_url = database_url.strip()
+    if database_url.startswith('mysql://'):
+        return database_url.replace('mysql://', 'mysql+pymysql://', 1)
+    return database_url
+
+database_url = normalize_database_url(os.getenv('DATABASE_URL'))
 if database_url:
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url.strip()
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -63,16 +75,38 @@ def registrar_donacion():
 
 # GET - Ver todas las donaciones recibidas
 @app.route('/donaciones', methods=['GET'])
-def listar_donaciones():
+@auth_required('admin')
+def listar_donaciones(usuario_actual):
     try:
         donaciones = Donacion.query.all()
         return jsonify(donaciones=[d.to_dict() for d in donaciones]), 200
     except Exception as e:
         return jsonify(error=f"Error al obtener: {str(e)}"), 500
 
+# PUT - Editar una Donación (corregir monto/comentario de un registro)
+@app.route('/donaciones/<int:id>', methods=['PUT'])
+@auth_required('admin')
+def actualizar_donacion(usuario_actual, id):
+    donacion = Donacion.query.get(id)
+    if not donacion:
+        return jsonify(error="Donación no encontrada."), 404
+
+    data = request.get_json() or {}
+    try:
+        if 'monto' in data:
+            donacion.monto = float(data.get('monto'))
+        donacion.comentario = data.get('comentario', donacion.comentario)
+
+        db.session.commit()
+        return jsonify(message="Donación actualizada correctamente.", donacion=donacion.to_dict()), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify(error=f"Error al editar: {str(e)}"), 500
+
 # DELETE - Eliminar registro de donación (Logs de auditoría)
 @app.route('/donaciones/<int:id>', methods=['DELETE'])
-def eliminar_donacion(id):
+@auth_required('admin')
+def eliminar_donacion(usuario_actual, id):
     donacion = Donacion.query.get(id)
     if not donacion:
         return jsonify(error="Donación no encontrada."), 404

@@ -1,8 +1,12 @@
 import os
+import pymysql
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from dotenv import load_dotenv
+from auth_utils import auth_required
+
+pymysql.install_as_MySQLdb()
 
 load_dotenv()
 
@@ -10,9 +14,17 @@ app = Flask(__name__)
 CORS(app)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'key-segura-eventos')
 
-database_url = os.getenv('DATABASE_URL')
+def normalize_database_url(database_url):
+    if not database_url:
+        return database_url
+    database_url = database_url.strip()
+    if database_url.startswith('mysql://'):
+        return database_url.replace('mysql://', 'mysql+pymysql://', 1)
+    return database_url
+
+database_url = normalize_database_url(os.getenv('DATABASE_URL'))
 if database_url:
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url.strip()
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db = SQLAlchemy(app)
@@ -40,7 +52,8 @@ def home():
 
 # POST - Publicar Evento
 @app.route('/eventos', methods=['POST'])
-def crear_evento():
+@auth_required('admin')
+def crear_evento(usuario_actual):
     data = request.get_json() or {}
     titulo = data.get('titulo')
     descripcion = data.get('descripcion')
@@ -75,7 +88,8 @@ def listar_eventos():
 
 # PUT - Editar un Evento
 @app.route('/eventos/<int:id>', methods=['PUT'])
-def actualizar_evento(id):
+@auth_required('admin')
+def actualizar_evento(usuario_actual, id):
     evento = Evento.query.get(id)
     if not evento:
         return jsonify(error="Evento no encontrado."), 404
@@ -95,7 +109,8 @@ def actualizar_evento(id):
 
 # DELETE - Cancelar Evento
 @app.route('/eventos/<int:id>', methods=['DELETE'])
-def eliminar_evento(id):
+@auth_required('admin')
+def eliminar_evento(usuario_actual, id):
     evento = Evento.query.get(id)
     if not evento:
         return jsonify(error="Evento no encontrado."), 404

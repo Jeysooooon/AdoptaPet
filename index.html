@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AdoptaPet - Portal de Adopción</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body class="bg-slate-50 font-sans h-screen flex overflow-hidden">
+
+    <!-- 📊 SIDEBAR (Menú Lateral de Navegación) -->
+    <aside class="w-64 bg-slate-900 text-slate-200 flex flex-col justify-between shadow-xl">
+        <div>
+            <!-- Logo -->
+            <div class="p-6 bg-slate-950 flex items-center gap-3">
+                <span class="text-3xl">🐾</span>
+                <span class="text-xl font-black tracking-wider text-teal-400">AdoptaPet</span>
+            </div>
+            
+            <!-- Items de navegación -->
+            <nav class="p-4 space-y-1">
+                <button onclick="switchView('view-mascotas')" id="btn-view-mascotas" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-teal-600 text-white font-semibold transition-all">
+                    <i class="fa-solid fa-dog w-5"></i> Mascotas
+                </button>
+                <button onclick="switchView('view-adopciones')" id="btn-view-adopciones" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all">
+                    <i class="fa-solid fa-heart w-5"></i> Adopciones
+                </button>
+                <button onclick="switchView('view-donaciones')" id="btn-view-donaciones" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all">
+                    <i class="fa-solid fa-hand-holding-dollar w-5"></i> Donaciones
+                </button>
+                <button onclick="switchView('view-eventos')" id="btn-view-eventos" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all">
+                    <i class="fa-solid fa-calendar-days w-5"></i> Eventos
+                </button>
+                <button onclick="switchView('view-notificaciones')" id="btn-view-notificaciones" class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all">
+                    <i class="fa-solid fa-bell w-5"></i> Notificaciones
+                </button>
+            </nav>
+        </div>
+
+        <!-- Footer del Sidebar / Perfil -->
+        <div class="p-4 border-t border-slate-800">
+            <button onclick="switchView('view-perfil')" id="btn-view-perfil" class="nav-btn w-full flex items-center gap-3 px-4 py-2.5 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all">
+                <i class="fa-solid fa-user-circle text-xl"></i>
+                <div class="text-left">
+                    <p class="text-xs text-slate-500 font-bold">SESIÓN</p>
+                    <p class="text-sm font-semibold">Mi Cuenta</p>
+                </div>
+            </button>
+        </div>
+    </aside>
+
+    <!-- 🖥️ CONTENIDO PRINCIPAL -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+        
+        <!-- Header Superior -->
+        <header class="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between">
+            <h2 id="current-view-title" class="text-xl font-bold text-slate-800">🐾 Mascotas Disponibles</h2>
+            <div class="flex items-center gap-4">
+                <div id="connectionStatus" class="flex items-center gap-2 text-xs font-semibold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Servidores Activos
+                </div>
+                <div id="authArea" class="flex items-center gap-3">
+                    <button id="btnLoginHeader" onclick="toggleModal('modal-login', true)" class="bg-slate-900 text-white px-3 py-1 rounded-lg font-semibold">Iniciar sesión</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Contenedor de Vistas Dinámicas -->
+        <div class="flex-1 overflow-y-auto p-8">
+            <div id="globalAlert" class="hidden mb-6 p-4 rounded-xl text-center font-semibold transition-all"></div>
+
+            <!-- ==================== 1. VISTA MASCOTAS ==================== -->
+            <section id="view-mascotas" class="view-section space-y-8">
+                <div class="flex justify-between items-center bg-teal-50 p-6 rounded-2xl border border-teal-100">
+                    <div>
+                        <h3 class="text-lg font-bold text-teal-900">¿Eres Administrador o Albergue?</h3>
+                        <p class="text-sm text-teal-700">Registra un nuevo peludito para que aparezca en el catálogo público de inmediato.</p>
+                    </div>
+                    <button onclick="toggleModal('modal-nueva-mascota', true)" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 px-5 rounded-xl transition-all shadow-md">
+                        + Registrar Mascota
+                    </button>
+                </div>
+
+                <!-- Catálogo Público -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="catalogoMascotas">
+                    <!-- Cards dinámicas -->
+                </div>
+            </section>
+
+            <!-- ==================== 2. VISTA ADOPCIONES ==================== -->
+            <section id="view-adopciones" class="view-section hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h3 class="text-lg font-bold mb-4">Formulario de Solicitud de Adopción</h3>
+                    <form id="formAdopcion" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">ID Mascota a Adoptar</label>
+                            <input type="number" id="adoptPetId" required class="w-full px-3 py-2 border rounded-xl bg-slate-50" placeholder="Ej. 1">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">ID Solicitante (Tu ID de Usuario)</label>
+                            <input type="number" id="adoptUserId" required class="w-full px-3 py-2 border rounded-xl bg-slate-50" placeholder="Ej. 1">
+                        </div>
+                        <button type="submit" class="bg-rose-600 hover:bg-rose-700 text-white font-bold py-2.5 px-4 rounded-xl transition-all">
+                            Enviar Solicitud ❤️
+                        </button>
+                    </form>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h3 class="text-lg font-bold mb-4">Historial de Adopciones</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 font-bold uppercase text-xs border-b">
+                                    <th class="p-3">ID Solicitud</th>
+                                    <th class="p-3">ID Mascota</th>
+                                    <th class="p-3">ID Usuario</th>
+                                    <th class="p-3">Fecha</th>
+                                    <th class="p-3">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaAdopciones" class="divide-y divide-slate-100">
+                                <tr><td colspan="5" class="p-4 text-center text-slate-400">Cargando solicitudes...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 3. VISTA DONACIONES ==================== -->
+            <section id="view-donaciones" class="view-section hidden space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm md:col-span-1">
+                        <h3 class="text-lg font-bold mb-4">Apoya nuestra labor 💖</h3>
+                        <form id="formDonacion" class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">Monto ($)</label>
+                                <input type="number" step="0.01" id="donMonto" required class="w-full px-3 py-2 border rounded-xl bg-slate-50" placeholder="10.00">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">ID Donante (Opcional)</label>
+                                <input type="number" id="donUserId" class="w-full px-3 py-2 border rounded-xl bg-slate-50" placeholder="Ej: 1">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 mb-1">Mensaje de apoyo</label>
+                                <textarea id="donComentario" class="w-full px-3 py-2 border rounded-xl bg-slate-50 h-20" placeholder="¡Mucho éxito!"></textarea>
+                            </div>
+                            <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 rounded-xl transition-all">
+                                Confirmar Donación 💳
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm md:col-span-2">
+                        <h3 class="text-lg font-bold mb-4">Donantes de Corazón</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-sm">
+                                <thead>
+                                    <tr class="bg-slate-50 text-slate-500 font-bold uppercase text-xs border-b">
+                                        <th class="p-3">ID</th>
+                                        <th class="p-3">Donante ID</th>
+                                        <th class="p-3">Monto</th>
+                                        <th class="p-3">Comentario</th>
+                                        <th class="p-3">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tablaDonaciones" class="divide-y divide-slate-100">
+                                    <tr><td colspan="5" class="p-4 text-center text-slate-400">Cargando donaciones...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 4. VISTA EVENTOS ==================== -->
+            <section id="view-eventos" class="view-section hidden space-y-6">
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h3 class="text-lg font-bold mb-4">Próximos Eventos de Adopción</h3>
+                    <div id="listaEventos" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Tarjetas de Eventos -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 5. VISTA NOTIFICACIONES ==================== -->
+            <section id="view-notificaciones" class="view-section hidden space-y-4">
+                <div class="max-w-2xl mx-auto bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                    <h3 class="text-lg font-bold mb-4">Bandeja de Entrada</h3>
+                    <div id="listaNotificaciones" class="space-y-3">
+                        <!-- Notificaciones dinámicas -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 6. VISTA MI PERFIL ==================== -->
+            <section id="view-perfil" class="view-section hidden max-w-md mx-auto space-y-6">
+                <div class="bg-white p-8 rounded-2xl border border-slate-200 shadow-lg">
+                    <h3 class="text-xl font-bold mb-6 text-center">🔐 Registro de Nuevo Usuario</h3>
+                    <form id="formUsuario" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Nombre Completo</label>
+                            <input type="text" id="userNombre" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Correo Electrónico</label>
+                            <input type="email" id="userCorreo" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Contraseña</label>
+                            <input type="password" id="userPassword" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 mb-1">Confirmar Contraseña</label>
+                            <input type="password" id="userConfirmarPassword" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                        </div>
+                        <button type="submit" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 rounded-xl transition-all">
+                            Registrarse
+                        </button>
+                    </form>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- 🔐 MODAL: LOGIN -->
+    <div id="modal-login" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
+            <header class="p-6 bg-slate-50 border-b flex justify-between items-center">
+                <h3 class="text-lg font-bold text-slate-800">🔐 Iniciar Sesión</h3>
+                <button onclick="toggleModal('modal-login', false)" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </header>
+            <form id="formLogin" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Correo Electrónico</label>
+                    <input type="email" id="loginCorreo" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Contraseña</label>
+                    <input type="password" id="loginPassword" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                </div>
+                <div class="pt-4 flex gap-3 justify-end border-t">
+                    <button type="button" onclick="toggleModal('modal-login', false)" class="px-4 py-2 text-slate-500 hover:text-slate-700 font-bold">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition-all shadow-md">Iniciar Sesión</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 💰 MODAL: EDITAR DONACIÓN -->
+    <div id="modal-editar-donacion" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
+            <header class="p-6 bg-slate-50 border-b flex justify-between items-center">
+                <h3 class="text-lg font-bold text-slate-800">✏️ Editar Donación</h3>
+                <button onclick="toggleModal('modal-editar-donacion', false)" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </header>
+            <form id="formEditarDonacion" class="p-6 space-y-4">
+                <input type="hidden" id="editDonId">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Monto ($)</label>
+                    <input type="number" step="0.01" id="editDonMonto" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Comentario</label>
+                    <textarea id="editDonComentario" class="w-full px-3 py-2 border rounded-xl bg-slate-50 h-20"></textarea>
+                </div>
+                <div class="pt-4 flex gap-3 justify-end border-t">
+                    <button type="button" onclick="toggleModal('modal-editar-donacion', false)" class="px-4 py-2 text-slate-500 hover:text-slate-700 font-bold">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl font-bold transition-all shadow-md">Guardar Cambios</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 🚨 MODAL: NUEVA MASCOTA -->
+    <div id="modal-nueva-mascota" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
+            <header class="p-6 bg-slate-50 border-b flex justify-between items-center">
+                <h3 class="text-lg font-bold text-slate-800">➕ Agregar Mascota</h3>
+                <button onclick="toggleModal('modal-nueva-mascota', false)" class="text-slate-400 hover:text-slate-600 text-xl font-bold">&times;</button>
+            </header>
+            <form id="formMascota" class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Nombre</label>
+                        <input type="text" id="petNombre" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Especie</label>
+                        <select id="petEspecie" class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                            <option value="Perro">Perro 🐶</option>
+                            <option value="Gato">Gato 🐱</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="col-span-2">
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Raza</label>
+                        <input type="text" id="petRaza" required class="w-full px-3 py-2 border rounded-xl bg-slate-50" placeholder="Ej. Husky">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 mb-1">Edad (Meses)</label>
+                        <input type="number" id="petEdad" required class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Tamaño</label>
+                    <select id="petTamano" class="w-full px-3 py-2 border rounded-xl bg-slate-50">
+                        <option value="Pequeño">Pequeño</option>
+                        <option value="Mediano">Mediano</option>
+                        <option value="Grande">Grande</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Descripción</label>
+                    <textarea id="petDesc" required class="w-full px-3 py-2 border rounded-xl bg-slate-50 h-20" placeholder="Cuéntanos un poco sobre su temperamento..."></textarea>
+                </div>
+                <div class="pt-4 flex gap-3 justify-end border-t">
+                    <button type="button" onclick="toggleModal('modal-nueva-mascota', false)" class="px-4 py-2 text-slate-500 hover:text-slate-700 font-bold">Cancelar</button>
+                    <button type="submit" class="px-5 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl font-bold transition-all shadow-md">Guardar Mascota</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 🌐 SCRIPT DE INTEGRACIÓN -->
+    <script>
+        // Configuración de URLs de Microservicios (Servicio de Usuarios conectado a Railway)
+        const API_URLS = {
+            usuarios: "https://adoptapet-production-f577.up.railway.app",
+            adopciones: "http://localhost:48911",
+            donaciones: "http://localhost:48912",
+            eventos: "http://localhost:48913",
+            mascotas: "http://localhost:48914",
+            notificaciones: "http://localhost:48915"
+        };
+
+        // --- AUTENTICACIÓN CLIENTE ---
+        async function apiFetch(url, opts = {}) {
+            opts = opts || {};
+            opts.headers = opts.headers || {};
+            if (opts.body && !opts.headers['Content-Type']) {
+                opts.headers['Content-Type'] = 'application/json';
+            }
+            const token = localStorage.getItem('token');
+            if (token) {
+                opts.headers['Authorization'] = `Bearer ${token}`;
+            }
+            return fetch(url, opts);
+        }
+
+        function parseJwt(token) {
+            try {
+                const base64Url = token.split('.')[1];
+                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                }).join(''));
+                return JSON.parse(jsonPayload);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function updateAuthUI() {
+            const authArea = document.getElementById('authArea');
+            const token = localStorage.getItem('token');
+            if (!token) {
+                authArea.innerHTML = `<button id="btnLoginHeader" onclick="toggleModal('modal-login', true)" class="bg-slate-900 text-white px-3 py-1 rounded-lg font-semibold">Iniciar sesión</button>`;
+                const adoptUserId = document.getElementById('adoptUserId');
+                if (adoptUserId) { adoptUserId.disabled = false; adoptUserId.value = ''; }
+                return;
+            }
+
+            const payload = parseJwt(token) || {};
+            const correo = payload.correo || payload.email || 'Usuario';
+            const uid = payload.id || null;
+            authArea.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="text-sm font-semibold text-slate-700">👤 ${correo}</span>
+                    <button id="btnLogoutHeader" class="px-3 py-1 bg-rose-600 text-white rounded-md font-semibold text-xs hover:bg-rose-700">Cerrar sesión</button>
+                </div>
+            `;
+            document.getElementById('btnLogoutHeader').addEventListener('click', () => {
+                localStorage.removeItem('token');
+                updateAuthUI();
+                showNotification('Sesión cerrada correctamente.');
+            });
+
+            const adoptUserId = document.getElementById('adoptUserId');
+            if (adoptUserId && uid) { adoptUserId.value = uid; adoptUserId.disabled = true; }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const formLogin = document.getElementById('formLogin');
+            if (formLogin) {
+                formLogin.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const correo = document.getElementById('loginCorreo').value;
+                    const password = document.getElementById('loginPassword').value;
+                    try {
+                        const res = await fetch(`${API_URLS.usuarios}/login`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ correo, password })
+                        });
+                        const data = await res.json();
+                        if (res.ok && data.token) {
+                            localStorage.setItem('token', data.token);
+                            toggleModal('modal-login', false);
+                            updateAuthUI();
+                            showNotification('¡Inicio de sesión exitoso!');
+                        } else {
+                            showNotification(data.error || 'Credenciales inválidas.', true);
+                        }
+                    } catch (err) {
+                        showNotification('Fallo al conectar con el servidor en Railway.', true);
+                    }
+                });
+            }
+            updateAuthUI();
+        });
+
+        function switchView(viewId) {
+            document.querySelectorAll('.view-section').forEach(sec => sec.classList.add('hidden'));
+            document.getElementById(viewId).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-slate-100 transition-all";
+            });
+            const activeBtn = document.getElementById(`btn-${viewId}`);
+            if (activeBtn) {
+                if (viewId === 'view-mascotas') activeBtn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-teal-600 text-white font-semibold transition-all";
+                else if (viewId === 'view-adopciones') activeBtn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-rose-600 text-white font-semibold transition-all";
+                else if (viewId === 'view-donaciones') activeBtn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-500 text-white font-semibold transition-all";
+                else activeBtn.className = "nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-800 text-white font-semibold transition-all";
+            }
+
+            const titleMap = {
+                'view-mascotas': '🐶 Mascotas Disponibles',
+                'view-adopciones': '❤️ Solicitudes de Adopción',
+                'view-donaciones': '💰 Registro de Donaciones',
+                'view-eventos': '📅 Eventos del Refugio',
+                'view-notificaciones': '🔔 Mis Notificaciones',
+                'view-perfil': '👤 Configuración de Perfil'
+            };
+            document.getElementById('current-view-title').textContent = titleMap[viewId] || "AdoptaPet";
+
+            if (viewId === 'view-mascotas') cargarCatalogoMascotas();
+            if (viewId === 'view-adopciones') cargarHistorialAdopciones();
+            if (viewId === 'view-donaciones') cargarHistorialDonaciones();
+            if (viewId === 'view-eventos') cargarEventos();
+            if (viewId === 'view-notificaciones') cargarNotificaciones();
+        }
+
+        function toggleModal(modalId, show) {
+            const modal = document.getElementById(modalId);
+            if (show) modal.classList.remove('hidden');
+            else modal.classList.add('hidden');
+        }
+
+        function showNotification(message, isError = false) {
+            const alertDiv = document.getElementById('globalAlert');
+            alertDiv.textContent = message;
+            alertDiv.className = isError 
+                ? "mb-6 p-4 rounded-xl text-center font-bold bg-red-100 text-red-700 shadow-sm border border-red-200"
+                : "mb-6 p-4 rounded-xl text-center font-bold bg-green-100 text-green-700 shadow-sm border border-green-200";
+            alertDiv.classList.remove('hidden');
+            setTimeout(() => alertDiv.classList.add('hidden'), 4000);
+        }
+
+        // --- CONSUMO DE APIs ---
+        async function cargarCatalogoMascotas() {
+            const container = document.getElementById('catalogoMascotas');
+            container.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 font-medium">Cargando catálogo...</div>`;
+
+            try {
+                const res = await fetch(`${API_URLS.mascotas}/mascotas`);
+                const data = await res.json();
+
+                if (res.ok && data.mascotas.length > 0) {
+                    container.innerHTML = "";
+                    data.mascotas.forEach(mascota => {
+                        const avatar = mascota.especie.toLowerCase() === 'perro' ? '🐕' : '🐈';
+                        container.innerHTML += `
+                            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-lg transition-all flex flex-col justify-between">
+                                <div class="p-6">
+                                    <div class="flex justify-between items-start mb-4">
+                                        <div class="text-4xl p-3 bg-slate-50 rounded-2xl">${avatar}</div>
+                                        <span class="px-3 py-1 text-xs font-bold rounded-full ${mascota.estado === 'Disponible' ? 'bg-emerald-100 text-emerald-800':'bg-slate-100 text-slate-600'}">
+                                            ${mascota.estado}
+                                        </span>
+                                    </div>
+                                    <h4 class="text-xl font-bold text-slate-800 mb-1">${mascota.nombre}</h4>
+                                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">${mascota.especie} • ${mascota.raza}</p>
+                                    <p class="text-sm text-slate-600 line-clamp-3">${mascota.descripcion}</p>
+                                </div>
+                                <div class="px-6 pb-6 pt-4 border-t border-slate-100 bg-slate-50/50 flex justify-between items-center">
+                                    <span class="text-sm font-semibold text-slate-500">${mascota.edad_meses} Meses • ${mascota.tamaño}</span>
+                                    <button onclick="solicitarAdopcionRapida(${mascota.id_mascota})" class="bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs py-2 px-4 rounded-xl transition-all shadow-sm">
+                                        Adoptar ❤️
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    container.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400">No hay mascotas disponibles en este momento.</div>`;
+                }
+            } catch (err) {
+                container.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400 font-semibold">Microservicio de Mascotas no conectado.</div>`;
+            }
+        }
+
+        document.getElementById('formMascota').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                nombre: document.getElementById('petNombre').value,
+                especie: document.getElementById('petEspecie').value,
+                raza: document.getElementById('petRaza').value,
+                edad_meses: parseInt(document.getElementById('petEdad').value),
+                tamaño: document.getElementById('petTamano').value,
+                descripcion: document.getElementById('petDesc').value
+            };
+
+            try {
+                const res = await apiFetch(`${API_URLS.mascotas}/mascotas`, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    showNotification("🐾 ¡Mascota agregada de manera exitosa!");
+                    toggleModal('modal-nueva-mascota', false);
+                    document.getElementById('formMascota').reset();
+                    cargarCatalogoMascotas();
+                } else {
+                    const err = await res.json().catch(()=>({error:'Error'}));
+                    showNotification(err.error || "No se pudo agregar el registro.", true);
+                }
+            } catch (err) {
+                showNotification("Error de conexión con el servicio de Mascotas.", true);
+            }
+        });
+
+        document.getElementById('formAdopcion').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const idMascota = parseInt(document.getElementById('adoptPetId').value);
+            const adoptUserField = document.getElementById('adoptUserId');
+            const token = localStorage.getItem('token');
+
+            const payload = token ? { id_mascota: idMascota } : { id_mascota: idMascota, id_usuario: parseInt(adoptUserField.value) };
+
+            try {
+                const res = await apiFetch(`${API_URLS.adopciones}/adopciones`, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    showNotification("💖 ¡Solicitud de adopción recibida con éxito!");
+                    document.getElementById('formAdopcion').reset();
+                    cargarHistorialAdopciones();
+                } else {
+                    const err = await res.json().catch(()=>({error:'Error'}));
+                    showNotification(err.error || "Error procesando adopción.", true);
+                }
+            } catch (err) {
+                showNotification("Fallo de comunicación con Adopciones.", true);
+            }
+        });
+
+        function solicitarAdopcionRapida(idMascota) {
+            switchView('view-adopciones');
+            document.getElementById('adoptPetId').value = idMascota;
+        }
+
+        async function cargarHistorialAdopciones() {
+            const tbody = document.getElementById('tablaAdopciones');
+            try {
+                const res = await fetch(`${API_URLS.adopciones}/adopciones`);
+                const data = await res.json();
+                if (res.ok && data.adopciones.length > 0) {
+                    tbody.innerHTML = "";
+                    data.adopciones.forEach(item => {
+                        tbody.innerHTML += `
+                            <tr>
+                                <td class="p-3 font-semibold text-slate-500">#${item.id}</td>
+                                <td class="p-3">Mascota #${item.id_mascota}</td>
+                                <td class="p-3">Usuario #${item.id_usuario}</td>
+                                <td class="p-3">${item.fecha || 'Reciente'}</td>
+                                <td class="p-3"><span class="px-2 py-0.5 text-xs font-bold rounded-full bg-amber-100 text-amber-800">${item.estado}</span></td>
+                            </tr>
+                        `;
+                    });
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">No hay registros de adopción.</td></tr>`;
+                }
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Servicio de Adopciones inactivo.</td></tr>`;
+            }
+        }
+
+        document.getElementById('formDonacion').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const token = localStorage.getItem('token');
+            const uidField = document.getElementById('donUserId');
+            const uid = uidField ? uidField.value : null;
+            const payload = {
+                monto: parseFloat(document.getElementById('donMonto').value),
+                id_usuario: token ? undefined : (uid ? parseInt(uid) : null),
+                comentario: document.getElementById('donComentario').value
+            };
+
+            try {
+                const res = await apiFetch(`${API_URLS.donaciones}/donaciones`, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    showNotification("💳 ¡Gracias por tu enorme donación!");
+                    document.getElementById('formDonacion').reset();
+                    cargarHistorialDonaciones();
+                } else {
+                    const err = await res.json().catch(()=>({error:'Error'}));
+                    showNotification(err.error || 'Error registrando donación.', true);
+                }
+            } catch (err) {
+                showNotification("Fallo al registrar donación.", true);
+            }
+        });
+
+        function esAdmin() {
+            const token = localStorage.getItem('token');
+            if (!token) return false;
+            const payload = parseJwt(token) || {};
+            return payload.rol === 'admin';
+        }
+
+        async function cargarHistorialDonaciones() {
+            const tbody = document.getElementById('tablaDonaciones');
+            const admin = esAdmin();
+            try {
+                const res = await apiFetch(`${API_URLS.donaciones}/donaciones`);
+                const data = await res.json();
+                if (res.ok && data.donaciones.length > 0) {
+                    tbody.innerHTML = "";
+                    data.donaciones.forEach(item => {
+                        const acciones = admin ? `
+                            <button onclick='abrirEditarDonacion(${item.id_donacion}, ${item.monto}, ${JSON.stringify(item.comentario || "")})' class="text-amber-600 hover:text-amber-800 font-semibold mr-3">Editar</button>
+                            <button onclick="eliminarDonacion(${item.id_donacion})" class="text-rose-600 hover:text-rose-800 font-semibold">Eliminar</button>
+                        ` : `<span class="text-slate-300">—</span>`;
+                        tbody.innerHTML += `
+                            <tr>
+                                <td class="p-3 font-semibold text-slate-500">#${item.id_donacion}</td>
+                                <td class="p-3">Usuario #${item.id_usuario || 'Anónimo'}</td>
+                                <td class="p-3 font-bold text-slate-800">$${parseFloat(item.monto).toFixed(2)}</td>
+                                <td class="p-3 text-slate-500">${item.comentario || 'Sin comentarios'}</td>
+                                <td class="p-3">${acciones}</td>
+                            </tr>
+                        `;
+                    });
+                } else if (res.ok) {
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">No hay donaciones registradas aún.</td></tr>`;
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Inicia sesión como administrador para ver las donaciones.</td></tr>`;
+                }
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-slate-400">Servicio de Donaciones inactivo.</td></tr>`;
+            }
+        }
+
+        function abrirEditarDonacion(id, monto, comentario) {
+            document.getElementById('editDonId').value = id;
+            document.getElementById('editDonMonto').value = monto;
+            document.getElementById('editDonComentario').value = comentario;
+            toggleModal('modal-editar-donacion', true);
+        }
+
+        document.getElementById('formEditarDonacion').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('editDonId').value;
+            const payload = {
+                monto: parseFloat(document.getElementById('editDonMonto').value),
+                comentario: document.getElementById('editDonComentario').value
+            };
+            try {
+                const res = await apiFetch(`${API_URLS.donaciones}/donaciones/${id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    showNotification('Donación actualizada correctamente.');
+                    toggleModal('modal-editar-donacion', false);
+                    cargarHistorialDonaciones();
+                } else {
+                    showNotification(data.error || 'Error al actualizar donación.', true);
+                }
+            } catch (err) {
+                showNotification('Fallo al conectar con el servicio de Donaciones.', true);
+            }
+        });
+
+        async function eliminarDonacion(id) {
+            if (!confirm('¿Eliminar este registro de donación? Esta acción no se puede deshacer.')) return;
+            try {
+                const res = await apiFetch(`${API_URLS.donaciones}/donaciones/${id}`, { method: 'DELETE' });
+                const data = await res.json().catch(() => ({}));
+                if (res.ok) {
+                    showNotification('Donación eliminada.');
+                    cargarHistorialDonaciones();
+                } else {
+                    showNotification(data.error || 'Error al eliminar donación.', true);
+                }
+            } catch (err) {
+                showNotification('Fallo al conectar con el servicio de Donaciones.', true);
+            }
+        }
+
+        async function cargarEventos() {
+            const container = document.getElementById('listaEventos');
+            try {
+                const res = await fetch(`${API_URLS.eventos}/eventos`);
+                const data = await res.json();
+                if (res.ok && data.eventos.length > 0) {
+                    container.innerHTML = "";
+                    data.eventos.forEach(ev => {
+                        container.innerHTML += `
+                            <div class="p-5 border rounded-2xl bg-slate-50 flex flex-col justify-between">
+                                <div>
+                                    <h4 class="font-bold text-slate-800 text-lg mb-1">${ev.titulo}</h4>
+                                    <p class="text-sm text-slate-500 mb-3"><i class="fa-solid fa-calendar text-teal-500 mr-2"></i>${ev.fecha}</p>
+                                    <p class="text-sm text-slate-600">${ev.descripcion}</p>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    container.innerHTML = `<p class="col-span-full text-center py-6 text-slate-400">No hay eventos programados en este momento.</p>`;
+                }
+            } catch (e) {
+                container.innerHTML = `<p class="col-span-full text-center py-6 text-slate-400">Servicio de Eventos inactivo.</p>`;
+            }
+        }
+
+        async function cargarNotificaciones() {
+            const container = document.getElementById('listaNotificaciones');
+            try {
+                const res = await apiFetch(`${API_URLS.notificaciones}/notificaciones`);
+                const data = await res.json();
+                if (res.ok && data.notificaciones.length > 0) {
+                    container.innerHTML = "";
+                    data.notificaciones.forEach(notif => {
+                        container.innerHTML += `
+                            <div class="p-4 border-l-4 border-teal-500 bg-teal-50/50 rounded-r-xl flex items-start gap-3">
+                                <i class="fa-solid fa-envelope-open-text text-teal-600 mt-1"></i>
+                                <div>
+                                    <p class="text-sm font-semibold text-slate-800">${notif.mensaje}</p>
+                                    <span class="text-xs text-slate-400">${notif.fecha || 'Hoy'}</span>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    container.innerHTML = `<p class="text-center py-6 text-slate-400">Tu bandeja de entrada está vacía.</p>`;
+                }
+            } catch (e) {
+                container.innerHTML = `<p class="text-center py-6 text-slate-400">Servicio de Notificaciones inactivo.</p>`;
+            }
+        }
+
+        // 👤 Registro de Usuarios conectado a Railway
+        document.getElementById('formUsuario').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const payload = {
+                nombre: document.getElementById('userNombre').value,
+                correo: document.getElementById('userCorreo').value,
+                password: document.getElementById('userPassword').value,
+                confirmar_password: document.getElementById('userConfirmarPassword').value
+            };
+
+            try {
+                const res = await fetch(`${API_URLS.usuarios}/registro`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const resultado = await res.json();
+                if (res.ok) {
+                    showNotification("🎉 ¡Registro de usuario completado en Railway! Ya puedes loguearte.");
+                    document.getElementById('formUsuario').reset();
+                } else {
+                    showNotification(resultado.error || "No se pudo completar el registro.", true);
+                }
+            } catch (err) {
+                showNotification("Fallo al conectar con el servidor de Usuarios en Railway.", true);
+            }
+        });
+
+        window.onload = () => {
+            cargarCatalogoMascotas();
+        };
+    </script>
+</body>
+</html>
