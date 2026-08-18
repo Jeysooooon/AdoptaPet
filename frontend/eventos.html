@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>AdoptaPet - Eventos</title>
+
+    <link
+        rel="stylesheet"
+        href="css/style.css"
+    >
+
+</head>
+
+<body>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/common.js"></script>
+
+<script>
+requireAuth();
+</script>
+
+
+<div class="sidebar">
+
+    <h2>🐾</h2>
+
+    <a href="dashboard.html">🏠 Dashboard</a>
+    <a href="mascotas.html">🐶 Mascotas</a>
+    <a href="adopciones.html">❤️ Adopciones</a>
+    <a href="eventos.html">📅 Eventos</a>
+    <a href="donaciones.html">💰 Donaciones</a>
+    <a href="reporte.html">📊 Reporte</a>
+
+</div>
+
+
+<div class="main">
+
+    <div class="topbar">
+
+        <h2>Eventos</h2>
+
+        <div>
+
+            <span id="userName"></span>
+
+            <button
+                id="logoutButton"
+                class="btn btn-danger"
+            >
+                Cerrar sesión
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <div class="content">
+
+        <div id="message" class="message"></div>
+
+
+        <div class="card">
+
+            <h2 id="formTitle">
+                Crear evento
+            </h2>
+
+            <form id="eventForm">
+
+                <input
+                    type="hidden"
+                    id="id_evento"
+                >
+
+
+                <div class="form-grid">
+
+                    <div class="form-group">
+
+                        <label>
+                            Título
+                        </label>
+
+                        <input
+                            id="titulo"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Fecha del evento
+                        </label>
+
+                        <input
+                            type="date"
+                            id="fecha_evento"
+                            required
+                        >
+
+                    </div>
+
+
+                    <div class="form-group">
+
+                        <label>
+                            Ubicación
+                        </label>
+
+                        <input
+                            id="ubicacion"
+                            required
+                        >
+
+                    </div>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>
+                        Descripción
+                    </label>
+
+                    <textarea
+                        id="descripcion"
+                        required
+                    ></textarea>
+
+                </div>
+
+
+                <div class="actions">
+
+                    <button
+                        class="btn btn-primary"
+                        type="submit"
+                    >
+                        Guardar evento
+                    </button>
+
+                    <button
+                        class="btn btn-secondary"
+                        type="button"
+                        onclick="resetEventForm()"
+                    >
+                        Limpiar
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+
+        <br>
+
+
+        <div class="card">
+
+            <h2>
+                Eventos registrados
+            </h2>
+
+            <div
+                id="eventsGrid"
+                class="grid"
+            ></div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+setupShell();
+
+let events = [];
+
+
+async function loadEvents() {
+
+    try {
+
+        const data =
+            await api(
+                API.EVENTOS +
+                "/eventos"
+            );
+
+        events =
+            data.eventos || [];
+
+        renderEvents();
+
+    } catch (error) {
+
+        showMessage(
+            error.message,
+            "error"
+        );
+
+    }
+
+}
+
+
+function renderEvents() {
+
+    const container =
+        document.getElementById(
+            "eventsGrid"
+        );
+
+
+    if (events.length === 0) {
+
+        container.innerHTML =
+            "<p>No hay eventos registrados.</p>";
+
+        return;
+    }
+
+
+    container.innerHTML =
+        events.map(
+            event => `
+
+            <div class="card">
+
+                <h3>
+                    ${escapeHtml(
+                        event.titulo
+                    )}
+                </h3>
+
+                <p>
+                    <strong>Fecha:</strong>
+                    ${escapeHtml(
+                        event.fecha_evento
+                    )}
+                </p>
+
+                <p>
+                    <strong>Ubicación:</strong>
+                    ${escapeHtml(
+                        event.ubicacion
+                    )}
+                </p>
+
+                <p>
+                    ${escapeHtml(
+                        event.descripcion
+                    )}
+                </p>
+
+                <div class="actions">
+
+                    <button
+                        class="btn btn-primary"
+                        onclick="editEvent(
+                            ${event.id_evento}
+                        )"
+                    >
+                        Editar
+                    </button>
+
+                    <button
+                        class="btn btn-danger"
+                        onclick="deleteEvent(
+                            ${event.id_evento}
+                        )"
+                    >
+                        Eliminar
+                    </button>
+
+                </div>
+
+            </div>
+
+        `
+        ).join("");
+
+}
+
+
+document
+    .getElementById("eventForm")
+    .addEventListener(
+        "submit",
+        async function(event) {
+
+            event.preventDefault();
+
+
+            const id =
+                document.getElementById(
+                    "id_evento"
+                ).value;
+
+
+            const data = {
+
+                titulo:
+                    document.getElementById(
+                        "titulo"
+                    ).value.trim(),
+
+                descripcion:
+                    document.getElementById(
+                        "descripcion"
+                    ).value.trim(),
+
+                fecha_evento:
+                    document.getElementById(
+                        "fecha_evento"
+                    ).value,
+
+                ubicacion:
+                    document.getElementById(
+                        "ubicacion"
+                    ).value.trim()
+
+            };
+
+
+            try {
+
+                if (id) {
+
+                    await api(
+                        API.EVENTOS +
+                        "/eventos/" +
+                        id,
+                        {
+                            method: "PUT",
+                            body:
+                                JSON.stringify(data)
+                        }
+                    );
+
+                    showMessage(
+                        "Evento actualizado."
+                    );
+
+                } else {
+
+                    await api(
+                        API.EVENTOS +
+                        "/eventos",
+                        {
+                            method: "POST",
+                            body:
+                                JSON.stringify(data)
+                        }
+                    );
+
+                    showMessage(
+                        "Evento creado correctamente."
+                    );
+
+                }
+
+
+                resetEventForm();
+
+                loadEvents();
+
+            } catch (error) {
+
+                showMessage(
+                    error.message,
+                    "error"
+                );
+
+            }
+
+        }
+    );
+
+
+function editEvent(id) {
+
+    const event =
+        events.find(
+            x => x.id_evento === id
+        );
+
+    if (!event) return;
+
+
+    document.getElementById(
+        "id_evento"
+    ).value =
+        event.id_evento;
+
+
+    document.getElementById(
+        "titulo"
+    ).value =
+        event.titulo;
+
+
+    document.getElementById(
+        "descripcion"
+    ).value =
+        event.descripcion;
+
+
+    document.getElementById(
+        "fecha_evento"
+    ).value =
+        event.fecha_evento;
+
+
+    document.getElementById(
+        "ubicacion"
+    ).value =
+        event.ubicacion;
+
+
+    document.getElementById(
+        "formTitle"
+    ).textContent =
+        "Editar evento";
+
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+
+}
+
+
+function resetEventForm() {
+
+    document
+        .getElementById(
+            "eventForm"
+        )
+        .reset();
+
+
+    document.getElementById(
+        "id_evento"
+    ).value = "";
+
+
+    document.getElementById(
+        "formTitle"
+    ).textContent =
+        "Crear evento";
+
+}
+
+
+async function deleteEvent(id) {
+
+    if (
+        !confirm(
+            "¿Seguro que deseas eliminar este evento?"
+        )
+    ) {
+        return;
+    }
+
+
+    try {
+
+        await api(
+            API.EVENTOS +
+            "/eventos/" +
+            id,
+            {
+                method: "DELETE"
+            }
+        );
+
+
+        showMessage(
+            "Evento eliminado."
+        );
+
+
+        loadEvents();
+
+    } catch (error) {
+
+        showMessage(
+            error.message,
+            "error"
+        );
+
+    }
+
+}
+
+
+loadEvents();
+
+</script>
+
+</body>
+</html>

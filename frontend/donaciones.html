@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>AdoptaPet - Donaciones</title>
+
+    <link
+        rel="stylesheet"
+        href="css/style.css"
+    >
+
+</head>
+
+<body>
+
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/common.js"></script>
+
+<script>
+requireAuth();
+</script>
+
+
+<div class="sidebar">
+
+    <h2>🐾</h2>
+
+    <a href="dashboard.html">🏠 Dashboard</a>
+    <a href="mascotas.html">🐶 Mascotas</a>
+    <a href="adopciones.html">❤️ Adopciones</a>
+    <a href="eventos.html">📅 Eventos</a>
+    <a href="donaciones.html">💰 Donaciones</a>
+    <a href="reporte.html">📊 Reporte</a>
+
+</div>
+
+
+<div class="main">
+
+    <div class="topbar">
+
+        <h2>Donaciones</h2>
+
+        <div>
+
+            <span id="userName"></span>
+
+            <button
+                id="logoutButton"
+                class="btn btn-danger"
+            >
+                Cerrar sesión
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <div class="content">
+
+        <div id="message" class="message"></div>
+
+
+        <div class="card">
+
+            <h2>Registrar donación</h2>
+
+            <form id="donationForm">
+
+                <div class="form-group">
+
+                    <label>
+                        Monto
+                    </label>
+
+                    <input
+                        type="number"
+                        id="monto"
+                        min="0.01"
+                        step="0.01"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>
+                        Comentario
+                    </label>
+
+                    <textarea
+                        id="comentario"
+                        placeholder="Comentario opcional"
+                    ></textarea>
+
+                </div>
+
+
+                <button
+                    class="btn btn-primary"
+                    type="submit"
+                >
+                    Registrar donación
+                </button>
+
+            </form>
+
+        </div>
+
+
+        <br>
+
+
+        <div class="card">
+
+            <h2>
+                Donaciones recibidas
+            </h2>
+
+            <div class="table-container">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+
+                            <th>ID</th>
+                            <th>Usuario</th>
+                            <th>Monto</th>
+                            <th>Comentario</th>
+                            <th>Fecha</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody
+                        id="donationsTable"
+                    ></tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+setupShell();
+
+
+async function loadDonations() {
+
+    try {
+
+        const data =
+            await api(
+                API.DONACIONES +
+                "/donaciones"
+            );
+
+
+        const table =
+            document.getElementById(
+                "donationsTable"
+            );
+
+
+        table.innerHTML =
+            data.donaciones.map(
+                donation => `
+
+                <tr>
+
+                    <td>
+                        ${donation.id_donacion}
+                    </td>
+
+                    <td>
+                        ${
+                            donation.id_usuario ??
+                            "Anónimo"
+                        }
+                    </td>
+
+                    <td>
+                        L.
+                        ${Number(
+                            donation.monto
+                        ).toFixed(2)}
+                    </td>
+
+                    <td>
+                        ${escapeHtml(
+                            donation.comentario ||
+                            ""
+                        )}
+                    </td>
+
+                    <td>
+                        ${escapeHtml(
+                            donation.fecha ||
+                            ""
+                        )}
+                    </td>
+
+                </tr>
+
+            `
+            ).join("");
+
+    } catch (error) {
+
+        showMessage(
+            error.message,
+            "error"
+        );
+
+    }
+
+}
+
+
+document
+    .getElementById("donationForm")
+    .addEventListener(
+        "submit",
+        async function(event) {
+
+            event.preventDefault();
+
+
+            const user =
+                getUser();
+
+
+            const data = {
+
+                id_usuario:
+                    user
+                    ? user.id
+                    : null,
+
+                monto:
+                    Number(
+                        document.getElementById(
+                            "monto"
+                        ).value
+                    ),
+
+                comentario:
+                    document.getElementById(
+                        "comentario"
+                    ).value.trim()
+
+            };
+
+
+            try {
+
+                await api(
+                    API.DONACIONES +
+                    "/donaciones",
+                    {
+                        method: "POST",
+                        body:
+                            JSON.stringify(data)
+                    }
+                );
+
+
+                showMessage(
+                    "¡Donación registrada correctamente!"
+                );
+
+
+                document
+                    .getElementById(
+                        "donationForm"
+                    )
+                    .reset();
+
+
+                loadDonations();
+
+            } catch (error) {
+
+                showMessage(
+                    error.message,
+                    "error"
+                );
+
+            }
+
+        }
+    );
+
+
+loadDonations();
+
+</script>
+
+</body>
+</html>
