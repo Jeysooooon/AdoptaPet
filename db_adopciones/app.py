@@ -16,7 +16,13 @@ pymysql.install_as_MySQLdb()
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+CORS(
+    app,
+    resources={r"/*": {"origins": ["http://localhost:8000", "http://127.0.0.1:8000"]}},
+    supports_credentials=True,
+    allow_headers=["Content-Type", "Authorization", "Accept"],
+    methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'key-segura-adopciones')
 
 def normalize_database_url(database_url):

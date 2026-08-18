@@ -205,6 +205,24 @@ services:
     ports:
       - "48910:48910"
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: adoptapet_frontend:latest
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - FLASK_ENV=production
+    depends_on:
+      - usuarios
+      - mascotas
+      - adopciones
+      - donaciones
+      - eventos
+      - notificaciones
+
 volumes:
   mysql_mascotas_data:
   mysql_adopciones_data:

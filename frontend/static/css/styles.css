@@ -1,0 +1,51 @@
+/* Dashboard styles for AdoptaPet */
+:root{
+  --bg-app: #f8fafc;
+  --sidebar-bg: #0d1b2a; /* deep blue/dark */
+  --emerald: #10b981; /* accent */
+  --card-bg: #ffffff;
+  --muted: #6b7280;
+}
+html,body{height:100%;}
+body{background:var(--bg-app);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,'Helvetica Neue',Arial;}
+.app-shell{min-height:100vh}
+
+/* Sidebar */
+.sidebar{width:260px;min-width:260px;background:var(--sidebar-bg);color:#e6eef6}
+.sidebar .sidebar-brand{border-bottom:1px solid rgba(255,255,255,0.03)}
+.sidebar .nav-link{color:rgba(255,255,255,0.85);padding:.65rem .9rem;border-radius:.45rem}
+.sidebar .nav-link:hover{background:rgba(255,255,255,0.03);text-decoration:none}
+.sidebar .nav-link.active{background:linear-gradient(90deg, rgba(16,185,129,0.12), transparent);color:#fff}
+.sidebar .text-emerald{color:var(--emerald)}
+.sidebar-footer{border-top:1px solid rgba(255,255,255,0.03)}
+
+/* Main area */
+.main{min-height:100vh;background:transparent}
+.topbar{background:transparent}
+.topbar .btn{border-radius:8px}
+.content{background:var(--bg-app);min-height:calc(100vh - 64px);}
+
+/* Cards */
+.card{background:var(--card-bg);border-radius:12px;border:0;box-shadow:0 6px 18px rgba(13,27,42,0.06)}
+.card .card-img-top{border-top-left-radius:12px;border-top-right-radius:12px;height:200px;object-fit:cover;background:#f3f4f6}
+.badge-available{background:linear-gradient(90deg,#059669,#10b981);color:#fff}
+.badge-locked{background:#94a3b8;color:#07203b}
+
+/* Utilities */
+.text-muted { color: var(--muted) !important }
+
+/* Responsive: collapse sidebar */
+@media (max-width: 768px){
+  .sidebar{position:fixed;left:-320px;top:0;bottom:0;z-index:1040;transition:left .18s ease}
+  .sidebar.show{left:0}
+  .app-shell .main{margin-left:0}
+}
+
+/* View containers */
+.view-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem}
+.table-card{background:var(--card-bg);padding:1rem;border-radius:10px}
+
+/* Small adjustments */
+.btn-success{background:var(--emerald);border-color:transparent}
+.btn-success:hover{background:#059669}
+
