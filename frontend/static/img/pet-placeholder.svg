@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" width="400" height="300" role="img" aria-label="Sin foto disponible">
+  <rect width="400" height="300" fill="#f3f4f6"/>
+  <g transform="translate(200,150)" fill="#c9d0da">
+    <!-- Cabeza -->
+    <circle cx="0" cy="10" r="55"/>
+    <!-- Orejas -->
+    <ellipse cx="-45" cy="-35" rx="18" ry="26" transform="rotate(-25 -45 -35)"/>
+    <ellipse cx="45" cy="-35" rx="18" ry="26" transform="rotate(25 45 -35)"/>
+    <!-- Hocico -->
+    <ellipse cx="0" cy="28" rx="26" ry="18" fill="#dfe4ea"/>
+    <!-- Ojos -->
+    <circle cx="-18" cy="2" r="5" fill="#9aa4b2"/>
+    <circle cx="18" cy="2" r="5" fill="#9aa4b2"/>
+    <!-- Nariz -->
+    <circle cx="0" cy="22" r="6" fill="#9aa4b2"/>
+  </g>
+  <text x="200" y="245" text-anchor="middle" font-family="Inter, system-ui, sans-serif" font-size="15" fill="#9aa4b2">Sin foto disponible</text>
+</svg>

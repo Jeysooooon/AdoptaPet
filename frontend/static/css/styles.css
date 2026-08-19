@@ -31,6 +31,38 @@ body{background:var(--bg-app);font-family:Inter,system-ui,-apple-system,"Segoe U
 .badge-available{background:linear-gradient(90deg,#059669,#10b981);color:#fff}
 .badge-locked{background:#94a3b8;color:#07203b}
 
+/* Pet cards: layout consistente para evitar espacios vacíos masivos */
+.pet-card{height:100%;display:flex;flex-direction:column}
+.pet-card .card-body{flex:1 1 auto}
+.pet-card .card-title{max-width:100%}
+.pet-card .pet-description{
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden;min-height:2.6em;color:#475569;
+}
+.pet-badges{display:flex;flex-wrap:wrap;gap:.35rem}
+.badge.pet-badge{background:#eef2f7;color:#334155;font-weight:500;padding:.35em .6em}
+.view-grid{align-items:stretch}
+.view-grid .pet-card{margin:0}
+
+/* Barra de filtros del catálogo */
+.filter-bar{display:flex;flex-wrap:wrap;gap:.6rem}
+.filter-bar select{max-width:220px}
+
+/* Empty states (rutas protegidas, catálogo vacío, etc.) */
+.empty-state{padding:3rem 1.5rem;background:var(--card-bg);border-radius:12px;box-shadow:0 6px 18px rgba(13,27,42,0.06)}
+.empty-state .empty-state-icon{font-size:2.6rem;color:var(--muted);margin-bottom:.75rem}
+
+/* Donaciones: montos rápidos y nota de pasarela */
+.quick-amounts{display:flex;gap:.5rem;flex-wrap:wrap}
+.quick-amount-btn.active{background:var(--emerald);color:#fff;border-color:var(--emerald)}
+.payment-note{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:8px;padding:.6rem .9rem;font-size:.9rem}
+
+/* Eventos: contenedor del calendario */
+#events-calendar{min-height:200px}
+#events-calendar .fc{font-family:inherit}
+#events-calendar .fc-daygrid-day.fc-day-today{background:rgba(16,185,129,0.08)}
+#events-calendar .fc-event{cursor:pointer}
+
 /* Utilities */
 .text-muted { color: var(--muted) !important }
 
@@ -48,4 +80,3 @@ body{background:var(--bg-app);font-family:Inter,system-ui,-apple-system,"Segoe U
 /* Small adjustments */
 .btn-success{background:var(--emerald);border-color:transparent}
 .btn-success:hover{background:#059669}
-
