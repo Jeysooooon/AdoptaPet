@@ -1,414 +1,119 @@
-/* 
-   CONFIGURACIÓN GENERAL
- */
+/* Dashboard styles for AdoptaPet */
+:root{
+  --bg-app: #f8fafc;
+  --sidebar-bg: #0d1b2a; /* deep blue/dark */
+  --emerald: #10b981; /* accent */
+  --card-bg: #ffffff;
+  --muted: #6b7280;
+}
+html,body{height:100%;}
+body{background:var(--bg-app);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,'Helvetica Neue',Arial;}
+.app-shell{min-height:100vh}
 
-* {
-    box-sizing: border-box;
+/* Sidebar */
+.sidebar{width:260px;min-width:260px;background:var(--sidebar-bg);color:#e6eef6}
+.sidebar .sidebar-brand{border-bottom:1px solid rgba(255,255,255,0.03)}
+.sidebar .nav-link{color:rgba(255,255,255,0.85);padding:.65rem .9rem;border-radius:.45rem}
+.sidebar .nav-link:hover{background:rgba(255,255,255,0.03);text-decoration:none}
+.sidebar .nav-link.active{background:linear-gradient(90deg, rgba(16,185,129,0.12), transparent);color:#fff}
+.sidebar .text-emerald{color:var(--emerald)}
+.sidebar-footer{border-top:1px solid rgba(255,255,255,0.03)}
+
+/* Main area */
+.main{min-height:100vh;background:transparent}
+.topbar{background:transparent}
+.topbar .btn{border-radius:8px}
+.content{background:var(--bg-app);min-height:calc(100vh - 64px);}
+
+/* Cards */
+.card{background:var(--card-bg);border-radius:12px;border:0;box-shadow:0 6px 18px rgba(13,27,42,0.06)}
+.card .card-img-top{border-top-left-radius:12px;border-top-right-radius:12px;height:200px;object-fit:cover;background:#f3f4f6}
+.badge-available{background:linear-gradient(90deg,#059669,#10b981);color:#fff}
+.badge-locked{background:#94a3b8;color:#07203b}
+
+/* Pet cards: layout consistente para evitar espacios vacíos masivos */
+.pet-card{height:100%;display:flex;flex-direction:column}
+.pet-card .card-body{flex:1 1 auto}
+.pet-card .card-title{max-width:100%}
+.pet-card .pet-description{
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden;min-height:2.6em;color:#475569;
+}
+.pet-badges{display:flex;flex-wrap:wrap;gap:.35rem}
+.badge.pet-badge{background:#eef2f7;color:#334155;font-weight:500;padding:.35em .6em}
+.view-grid{align-items:stretch}
+.view-grid .pet-card{margin:0}
+
+/* Barra de filtros del catálogo */
+.filter-bar{display:flex;flex-wrap:wrap;gap:.6rem}
+.filter-bar select{max-width:220px}
+
+/* Empty states (rutas protegidas, catálogo vacío, etc.) */
+.empty-state{padding:3rem 1.5rem;background:var(--card-bg);border-radius:12px;box-shadow:0 6px 18px rgba(13,27,42,0.06)}
+.empty-state .empty-state-icon{font-size:2.6rem;color:var(--muted);margin-bottom:.75rem}
+
+/* Donaciones: montos rápidos y nota de pasarela */
+.quick-amounts{display:flex;gap:.5rem;flex-wrap:wrap}
+.quick-amount-btn.active{background:var(--emerald);color:#fff;border-color:var(--emerald)}
+.payment-note{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534;border-radius:8px;padding:.6rem .9rem;font-size:.9rem}
+
+/* Eventos: contenedor del calendario */
+#events-calendar{min-height:200px}
+#events-calendar .fc{font-family:inherit}
+#events-calendar .fc-daygrid-day.fc-day-today{background:rgba(16,185,129,0.08)}
+#events-calendar .fc-event{cursor:pointer}
+
+/* Utilities */
+.text-muted { color: var(--muted) !important }
+
+/* Responsive: collapse sidebar */
+@media (max-width: 768px){
+  .sidebar{position:fixed;left:-320px;top:0;bottom:0;z-index:1040;transition:left .18s ease}
+  .sidebar.show{left:0}
+  .app-shell .main{margin-left:0}
 }
 
-body {
-    margin: 0;
-    font-family: Arial, Helvetica, sans-serif;
-    background: #f4f6f8;
-    color: #222;
-}
-
-a {
-    text-decoration: none;
-    color: inherit;
-}
-
-button {
-    cursor: pointer;
-}
-
-
-/* 
-   LOGIN
- */
-
-.login-page {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 20px;
-    background: linear-gradient(
-        135deg,
-        #f1f5f9,
-        #dbeafe
-    );
-}
-
-.login-card {
-    width: 100%;
-    max-width: 430px;
-    background: white;
-    padding: 35px;
-    border-radius: 18px;
-    box-shadow:
-        0 15px 40px rgba(0,0,0,0.12);
-}
-
-.logo {
-    text-align: center;
-    margin-bottom: 25px;
-}
-
-.logo h1 {
-    margin: 0;
-    font-size: 32px;
-}
-
-.logo p {
-    color: #667085;
-}
-
-
-/* 
-   FORMULARIOS
- */
-
-.form-group {
-    margin-bottom: 16px;
-}
-
-label {
-    display: block;
-    margin-bottom: 6px;
-    font-weight: bold;
-}
-
-input,
-select,
-textarea {
-    width: 100%;
-    padding: 11px 13px;
-    border: 1px solid #ccd3da;
-    border-radius: 8px;
-    font-size: 15px;
-    background: white;
-}
-
-textarea {
-    min-height: 110px;
-    resize: vertical;
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-    outline: none;
-    border-color: #2563eb;
-}
-
-
-/* 
-   BOTONES
- */
-
-.btn {
-    border: none;
-    border-radius: 8px;
-    padding: 11px 17px;
-    font-size: 14px;
-    font-weight: bold;
-    cursor: pointer;
-}
-
-.btn-primary {
-    background: #2563eb;
-    color: white;
-}
-
-.btn-primary:hover {
-    background: #1d4ed8;
-}
-
-.btn-success {
-    background: #16a34a;
-    color: white;
-}
-
-.btn-danger {
-    background: #dc2626;
-    color: white;
-}
-
-.btn-secondary {
-    background: #64748b;
-    color: white;
-}
-
-.btn-warning {
-    background: #f59e0b;
-    color: white;
-}
-
-
-/* 
-   ESTRUCTURA PRINCIPAL
- */
-
-.sidebar {
-    position: fixed;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 230px;
-    background: #111827;
-    color: white;
-    padding: 22px 15px;
-}
-
-.sidebar h2 {
-    text-align: center;
-    margin-bottom: 30px;
-}
-
-.sidebar a {
-    display: block;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 6px;
-}
-
-.sidebar a:hover {
-    background: #1f2937;
-}
-
-.main {
-    margin-left: 230px;
-    min-height: 100vh;
-}
-
-.topbar {
-    background: white;
-    padding: 18px 25px;
-    border-bottom: 1px solid #e5e7eb;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.content {
-    padding: 25px;
-}
-
-
-/* 
-   TARJETAS
- */
-
-.cards {
-    display: grid;
-    grid-template-columns:
-        repeat(4, 1fr);
-    gap: 18px;
-    margin-bottom: 25px;
-}
-
-.card {
-    background: white;
-    border-radius: 14px;
-    padding: 20px;
-    box-shadow:
-        0 4px 15px rgba(0,0,0,0.06);
-}
-
-.stat-number {
-    font-size: 32px;
-    font-weight: bold;
-    margin-top: 10px;
-}
-
-
-/* 
-   GRID
- */
-
-.grid {
-    display: grid;
-    grid-template-columns:
-        repeat(3, 1fr);
-    gap: 18px;
-}
-
-.form-grid {
-    display: grid;
-    grid-template-columns:
-        repeat(2, 1fr);
-    gap: 15px;
-}
-
-
-/* 
-   TABLAS
- */
-
-.table-container {
-    overflow-x: auto;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    background: white;
-}
-
-th,
-td {
-    padding: 12px;
-    border-bottom: 1px solid #e5e7eb;
-    text-align: left;
-}
-
-th {
-    background: #f8fafc;
-}
-
-
-/* 
-   MASCOTAS
- */
-
-.pet-card {
-    background: white;
-    border-radius: 14px;
-    overflow: hidden;
-    box-shadow:
-        0 4px 15px rgba(0,0,0,0.08);
-}
-
-.pet-card img {
-    width: 100%;
-    height: 200px;
-    object-fit: cover;
-}
-
-.pet-content {
-    padding: 17px;
-}
-
-.pet-content h3 {
-    margin-top: 0;
-}
-
-
-/* 
-   ESTADOS
- */
-
-.badge {
-    display: inline-block;
-    padding: 5px 10px;
-    border-radius: 20px;
-    font-size: 12px;
-    font-weight: bold;
-}
-
-.badge-success {
-    background: #dcfce7;
-    color: #166534;
-}
-
-.badge-warning {
-    background: #fef3c7;
-    color: #92400e;
-}
-
-.badge-danger {
-    background: #fee2e2;
-    color: #991b1b;
-}
-
-
-/* 
-   MENSAJES
- */
-
-.message {
-    min-height: 20px;
-    margin-bottom: 15px;
-    font-weight: bold;
-}
-
-.message.success {
-    color: #15803d;
-}
-
-.message.error {
-    color: #b91c1c;
-}
-
-
-/* 
-   BOTONERA
- */
-
-.actions {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-top: 12px;
-}
-
-
-/* 
-   RESPONSIVE TABLET
- */
-
-@media (max-width: 1050px) {
-
-    .cards {
-        grid-template-columns:
-            repeat(2, 1fr);
-    }
-
-    .grid {
-        grid-template-columns:
-            repeat(2, 1fr);
-    }
-}
-
-
-/* 
-   RESPONSIVE MÓVIL
- */
-
-@media (max-width: 720px) {
-
-    .sidebar {
-        width: 70px;
-        padding: 15px 8px;
-    }
-
-    .sidebar h2 {
-        font-size: 14px;
-    }
-
-    .sidebar a {
-        font-size: 0;
-        text-align: center;
-    }
-
-    .main {
-        margin-left: 70px;
-    }
-
-    .content {
-        padding: 15px;
-    }
-
-    .cards,
-    .grid,
-    .form-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .topbar {
-        flex-direction: column;
-        gap: 10px;
-        align-items: flex-start;
-    }
-}
+/* View containers */
+.view-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:1rem}
+.table-card{background:var(--card-bg);padding:1rem;border-radius:10px}
+
+/* Small adjustments */
+.btn-success{background:var(--emerald);border-color:transparent}
+.btn-success:hover{background:#059669}
+
+/* Badges de estado (Adopciones) */
+.badge-pendiente{background:#fef3c7;color:#92400e}
+.badge-aprobado{background:#d1fae5;color:#065f46}
+.badge-rechazado{background:#fee2e2;color:#991b1b}
+.badge-cancelado{background:#e2e8f0;color:#475569}
+
+/* Lista de Adopciones: tarjetas en vez de filas planas */
+.adoption-item{display:flex;justify-content:space-between;align-items:center;gap:1rem;
+  background:var(--card-bg);border-radius:10px;padding:.9rem 1.1rem;margin-bottom:.6rem;
+  box-shadow:0 2px 8px rgba(13,27,42,0.05)}
+.adoption-item .adoption-pet{font-weight:600}
+.adoption-item .adoption-meta{color:var(--muted);font-size:.85rem;margin-top:.15rem}
+
+/* Notificaciones: tarjetas con ícono y estado leído/no leído */
+.notif-item{display:flex;gap:.85rem;align-items:flex-start;background:var(--card-bg);
+  border-radius:10px;padding:.9rem 1.1rem;margin-bottom:.6rem;box-shadow:0 2px 8px rgba(13,27,42,0.05);
+  border-left:4px solid transparent;cursor:pointer;transition:background .15s ease}
+.notif-item:hover{background:#f8fafc}
+.notif-item.unread{border-left-color:var(--emerald)}
+.notif-item .notif-icon{font-size:1.2rem;color:var(--emerald);margin-top:.1rem}
+.notif-item.read .notif-icon{color:#94a3b8}
+.notif-item .notif-msg{font-weight:500}
+.notif-item.read .notif-msg{font-weight:400;color:#64748b}
+.notif-item .notif-date{color:var(--muted);font-size:.78rem;margin-top:.2rem}
+.notif-unread-dot{width:8px;height:8px;border-radius:50%;background:var(--emerald);flex-shrink:0;margin-top:.4rem}
+
+/* Historial de donaciones */
+.donation-item{display:flex;justify-content:space-between;align-items:center;gap:1rem;
+  background:var(--card-bg);border-radius:10px;padding:.85rem 1.1rem;margin-bottom:.55rem;
+  box-shadow:0 2px 8px rgba(13,27,42,0.05)}
+.donation-item .donation-amount{font-weight:700;color:#059669}
+.donation-item .donation-meta{color:var(--muted);font-size:.85rem}
+
+/* Modal detalle de mascota */
+.pet-detail-photo{width:100%;height:260px;object-fit:cover;border-radius:10px;background:#f3f4f6}
+.pet-detail-badges{display:flex;flex-wrap:wrap;gap:.4rem;margin:.75rem 0}

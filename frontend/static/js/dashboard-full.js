@@ -500,7 +500,12 @@ function showNewPetForm() {
               </div>
               <div class="col-md-6"><label class="form-label">Estado</label><select id="petEstado" class="form-select"><option value="Disponible">Disponible</option><option value="En proceso">En proceso</option></select></div>
               <div class="col-12"><label class="form-label">Descripción</label><textarea id="petDescripcion" class="form-control" rows="3" required></textarea></div>
-              <div class="col-md-8"><label class="form-label">Foto (URL)</label><input id="petFotoUrl" class="form-control" placeholder="https://..."></div>
+              <div class="col-md-8">
+                <label class="form-label">Foto (URL de imagen)</label>
+                <input id="petFotoUrl" class="form-control" placeholder="https://...">
+                <div class="form-text">Pega el enlace de una imagen ya subida (por ejemplo a Imgur, Cloudinary o el hosting que uses). Esta app no sube archivos, solo guarda la URL.</div>
+                <img id="petFotoPreview" class="pet-detail-photo mt-2 d-none" style="height:120px" alt="Vista previa">
+              </div>
               <div class="col-md-4 d-flex align-items-end"><button type="submit" class="btn btn-success w-100">Publicar Mascota</button></div>
             </div>
           </form>
@@ -512,6 +517,16 @@ function showNewPetForm() {
   const modalEl = document.getElementById(modalId);
   const modal = new bootstrap.Modal(modalEl);
   modal.show();
+  const fotoInput = document.getElementById('petFotoUrl');
+  const fotoPreview = document.getElementById('petFotoPreview');
+  if (fotoInput && fotoPreview) {
+    fotoInput.addEventListener('input', () => {
+      const url = fotoInput.value.trim();
+      if (url) { fotoPreview.src = url; fotoPreview.classList.remove('d-none'); }
+      else { fotoPreview.classList.add('d-none'); }
+    });
+    fotoPreview.addEventListener('error', () => fotoPreview.classList.add('d-none'));
+  }
   document.getElementById('newPetForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     await submitNewPet(modalEl);
@@ -566,9 +581,33 @@ function petNameById(id) {
   return p ? p.nombre : null;
 }
 
+// Cache simple de perfiles de usuario para no repetir llamadas al listar
+// solicitudes de adopción como admin.
+const userInfoCache = new Map();
+async function getUserInfo(id) {
+  if (!id) return null;
+  if (userInfoCache.has(id)) return userInfoCache.get(id);
+  try {
+    const res = await apiFetch('GET', `${CONFIG.USERS_URL}/perfil/${id}`, null, true);
+    const usuario = res.usuario || null;
+    userInfoCache.set(id, usuario);
+    return usuario;
+  } catch (e) {
+    userInfoCache.set(id, null);
+    return null;
+  }
+}
+
 async function renderAdoptionsView(root) {
   setActiveRoute('adoptions');
-  root.innerHTML = `<h4 class="mb-3">Mis solicitudes de adopción</h4><div id="adoptions-list"><div class="text-center text-muted p-4">Cargando solicitudes...</div></div>`;
+  const isAdmin = getRole() === 'admin';
+  root.innerHTML = `<h4 class="mb-3">${isAdmin ? 'Solicitudes de adopción' : 'Mis solicitudes de adopción'}</h4><div id="adoptions-list"><div class="text-center text-muted p-4">Cargando solicitudes...</div></div>`;
+  if (isAdmin) await renderAdoptionsAdmin(); else await renderAdoptionsUser();
+}
+
+// ---------- Vista Usuario: solo sus propias solicitudes, sin acciones ----------
+async function renderAdoptionsUser() {
+  const root = document.getElementById('view-root');
   try {
     const res = await apiFetch('GET', `${CONFIG.ADOPTIONS_URL}/adopciones`, null, true);
     const items = res.solicitudes || res.adopciones || [];
@@ -601,12 +640,83 @@ async function renderAdoptionsView(root) {
   }
 }
 
+// ---------- Vista Admin: todas las solicitudes, con Aceptar / Rechazar ----------
+async function renderAdoptionsAdmin() {
+  const root = document.getElementById('view-root');
+  try {
+    const res = await apiFetch('GET', `${CONFIG.ADOPTIONS_URL}/adopciones`, null, true);
+    const items = res.solicitudes || res.adopciones || [];
+    if (!items.length) {
+      document.getElementById('adoptions-list').innerHTML = `
+      <div class="empty-state text-center">
+        <div class="empty-state-icon"><i class="bi bi-inbox"></i></div>
+        <h5 class="mb-2">No hay solicitudes de adopción</h5>
+        <p class="text-muted mb-0">Cuando alguien solicite adoptar una mascota, aparecerá aquí.</p>
+      </div>`;
+      return;
+    }
+    // Trae el nombre de cada solicitante en paralelo (con caché).
+    const usuarios = await Promise.all(items.map(a => getUserInfo(a.id_usuario)));
+
+    document.getElementById('adoptions-list').innerHTML = items.map((a, i) => {
+      const nombreMascota = petNameById(a.id_mascota) || `Mascota #${a.id_mascota}`;
+      const badgeClass = adoptionStatusBadgeClass(a.estado);
+      const usuario = usuarios[i];
+      const nombreUsuario = usuario ? (usuario.nombre || usuario.correo) : `Usuario #${a.id_usuario}`;
+      const pendiente = (a.estado || 'Pendiente') === 'Pendiente';
+      const acciones = pendiente ? `
+        <div class="mt-2 d-flex gap-2">
+          <button class="btn btn-sm btn-success" data-action="aprobar" data-id="${a.id_solicitud}"><i class="bi bi-check-lg me-1"></i>Aceptar</button>
+          <button class="btn btn-sm btn-outline-danger" data-action="rechazar" data-id="${a.id_solicitud}"><i class="bi bi-x-lg me-1"></i>Negar</button>
+        </div>` : '';
+      return `
+      <div class="adoption-item align-items-start">
+        <div>
+          <div class="adoption-pet"><i class="bi bi-heart-fill text-danger me-2"></i>${escapeHtml(nombreMascota)}</div>
+          <div class="adoption-meta"><i class="bi bi-person me-1"></i>${escapeHtml(nombreUsuario)}</div>
+          <div class="adoption-meta">${escapeHtml(a.motivo_adopcion || 'Sin motivo indicado')}</div>
+          <div class="adoption-meta">Solicitada el ${formatFecha(a.fecha_solicitud)}</div>
+          ${acciones}
+        </div>
+        <span class="badge ${badgeClass}">${escapeHtml(a.estado || 'Pendiente')}</span>
+      </div>`;
+    }).join('');
+
+    document.querySelectorAll('#adoptions-list button[data-action]').forEach(btn => {
+      btn.addEventListener('click', () => resolverSolicitudAdopcion(btn.dataset.id, btn.dataset.action === 'aprobar' ? 'Aprobado' : 'Rechazado'));
+    });
+  } catch (err) {
+    if (err instanceof AuthError) handleSessionExpired({ background: true });
+    else document.getElementById('adoptions-list').innerHTML = `<div class="text-danger p-2">No se pudieron cargar las solicitudes. Intenta más tarde.</div>`;
+  }
+}
+
+async function resolverSolicitudAdopcion(id, nuevoEstado) {
+  try {
+    await apiFetch('PUT', `${CONFIG.ADOPTIONS_URL}/adopciones/${id}`, { estado: nuevoEstado }, true);
+    showAlert(nuevoEstado === 'Aprobado' ? 'Solicitud aceptada.' : 'Solicitud rechazada.', 'success');
+    await renderAdoptionsAdmin();
+  } catch (err) {
+    if (err instanceof AuthError) handleSessionExpired({ background: true });
+    else showAlert('No se pudo actualizar la solicitud: ' + (err.message || ''), 'danger');
+  }
+}
+
 // ---------- Donaciones ----------
 async function loadDonationsHistory() {
   const container = document.getElementById('donationsList');
   if (!container) return;
+  if (getRole() !== 'admin') {
+    container.innerHTML = `
+    <div class="empty-state text-center">
+      <div class="empty-state-icon"><i class="bi bi-lock"></i></div>
+      <h5 class="mb-2">Historial reservado</h5>
+      <p class="text-muted mb-0">Solo un administrador puede ver el historial completo de donaciones.</p>
+    </div>`;
+    return;
+  }
   try {
-    const res = await apiFetch('GET', `${CONFIG.DONATIONS_URL}/donaciones`);
+    const res = await apiFetch('GET', `${CONFIG.DONATIONS_URL}/donaciones`, null, true);
     const items = (res.donaciones || []).slice().sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
     if (!items.length) {
       container.innerHTML = `
@@ -626,7 +736,8 @@ async function loadDonationsHistory() {
         <span class="donation-amount">$${Number(d.monto).toFixed(2)}</span>
       </div>`).join('');
   } catch (err) {
-    container.innerHTML = `<div class="text-danger p-2">No se pudo cargar el historial de donaciones.</div>`;
+    if (err instanceof AuthError) container.innerHTML = `<div class="text-danger p-2">No tienes permiso para ver este historial.</div>`;
+    else container.innerHTML = `<div class="text-danger p-2">No se pudo cargar el historial de donaciones.</div>`;
   }
 }
 
@@ -817,7 +928,14 @@ function showNewEventForm(dateStr) {
 // ---------- Notificaciones (protegida) ----------
 async function renderNotificationsView(root) {
   setActiveRoute('notifications');
+  const isAdmin = getRole() === 'admin';
   root.innerHTML = `<h4 class="mb-3">Notificaciones</h4><div id="notifs"><div class="text-center text-muted p-4">Cargando notificaciones...</div></div>`;
+  if (isAdmin) await renderNotificationsAdmin(); else await renderNotificationsUser();
+}
+
+// ---------- Vista Usuario: solo sus propias notificaciones ----------
+async function renderNotificationsUser() {
+  const root = document.getElementById('view-root');
   try {
     const res = await apiFetch('GET', `${CONFIG.NOTIFS_URL}/notificaciones`, null, true);
     const items = res.notificaciones || [];
@@ -856,6 +974,89 @@ async function renderNotificationsView(root) {
   } catch (err) {
     if (err instanceof AuthError) { handleSessionExpired(); renderAuthEmptyState(root, { title: 'Tu sesión expiró', message: 'Vuelve a iniciar sesión para ver tus notificaciones.' }); }
     else document.getElementById('notifs').innerHTML = `<div class="text-danger p-2">No se pudieron cargar tus notificaciones. Intenta más tarde.</div>`;
+  }
+}
+
+// ---------- Vista Admin: resumen de actividad (adopciones, donaciones, eventos) ----------
+async function renderNotificationsAdmin() {
+  const container = document.getElementById('notifs');
+  container.innerHTML = `
+    <div class="mb-4">
+      <h6 class="text-muted text-uppercase small fw-bold mb-2"><i class="bi bi-heart-fill text-danger me-1"></i>Solicitudes de adopción pendientes</h6>
+      <div id="notif-adopciones"><div class="text-muted small p-2">Cargando...</div></div>
+    </div>
+    <div class="mb-4">
+      <h6 class="text-muted text-uppercase small fw-bold mb-2"><i class="bi bi-cash-coin text-success me-1"></i>Donaciones recientes</h6>
+      <div id="notif-donaciones"><div class="text-muted small p-2">Cargando...</div></div>
+    </div>
+    <div class="mb-4">
+      <h6 class="text-muted text-uppercase small fw-bold mb-2"><i class="bi bi-calendar-event text-primary me-1"></i>Próximos eventos</h6>
+      <div id="notif-eventos"><div class="text-muted small p-2">Cargando...</div></div>
+    </div>`;
+
+  // --- Adopciones pendientes ---
+  try {
+    const res = await apiFetch('GET', `${CONFIG.ADOPTIONS_URL}/adopciones`, null, true);
+    const pendientes = (res.solicitudes || res.adopciones || []).filter(a => (a.estado || 'Pendiente') === 'Pendiente');
+    const el = document.getElementById('notif-adopciones');
+    if (!pendientes.length) {
+      el.innerHTML = `<div class="text-muted small p-2">No hay solicitudes pendientes.</div>`;
+    } else {
+      const usuarios = await Promise.all(pendientes.map(a => getUserInfo(a.id_usuario)));
+      el.innerHTML = pendientes.map((a, i) => {
+        const nombreMascota = petNameById(a.id_mascota) || `Mascota #${a.id_mascota}`;
+        const usuario = usuarios[i];
+        const nombreUsuario = usuario ? (usuario.nombre || usuario.correo) : `Usuario #${a.id_usuario}`;
+        return `<div class="notif-item unread"><i class="bi bi-hourglass-split notif-icon"></i>
+          <div class="flex-fill">
+            <div class="notif-msg">${escapeHtml(nombreUsuario)} solicitó adoptar a ${escapeHtml(nombreMascota)}</div>
+            <div class="notif-date">${formatFecha(a.fecha_solicitud)}</div>
+          </div>
+          <span class="notif-unread-dot"></span>
+        </div>`;
+      }).join('');
+    }
+  } catch (e) {
+    document.getElementById('notif-adopciones').innerHTML = `<div class="text-danger small p-2">No se pudieron cargar las solicitudes.</div>`;
+  }
+
+  // --- Donaciones recientes ---
+  try {
+    const res = await apiFetch('GET', `${CONFIG.DONATIONS_URL}/donaciones`, null, true);
+    const items = (res.donaciones || []).slice().sort((a, b) => new Date(b.fecha) - new Date(a.fecha)).slice(0, 5);
+    const el = document.getElementById('notif-donaciones');
+    el.innerHTML = !items.length
+      ? `<div class="text-muted small p-2">No hay donaciones registradas.</div>`
+      : items.map(d => `<div class="notif-item read"><i class="bi bi-cash-coin notif-icon" style="color:#059669"></i>
+          <div class="flex-fill">
+            <div class="notif-msg">Nueva donación de $${Number(d.monto).toFixed(2)} — ${escapeHtml(d.comentario || 'Anónima')}</div>
+            <div class="notif-date">${formatFecha(d.fecha)}</div>
+          </div>
+        </div>`).join('');
+  } catch (e) {
+    document.getElementById('notif-donaciones').innerHTML = `<div class="text-danger small p-2">No se pudieron cargar las donaciones.</div>`;
+  }
+
+  // --- Próximos eventos ---
+  try {
+    const res = await apiFetch('GET', `${CONFIG.EVENTS_URL}/eventos`);
+    const now = new Date();
+    const proximos = (res.eventos || [])
+      .map(ev => ({ ev, d: parseEventDate(ev.fecha_evento) }))
+      .filter(x => !x.d || x.d >= now)
+      .sort((a, b) => (a.d || 0) - (b.d || 0))
+      .slice(0, 5);
+    const el = document.getElementById('notif-eventos');
+    el.innerHTML = !proximos.length
+      ? `<div class="text-muted small p-2">No hay eventos próximos.</div>`
+      : proximos.map(({ ev, d }) => `<div class="notif-item read"><i class="bi bi-calendar-event notif-icon" style="color:#2563eb"></i>
+          <div class="flex-fill">
+            <div class="notif-msg">${escapeHtml(ev.titulo)}${ev.ubicacion ? ' — ' + escapeHtml(ev.ubicacion) : ''}</div>
+            <div class="notif-date">${d ? formatFecha(d.toISOString()) : escapeHtml(ev.fecha_evento || '')}</div>
+          </div>
+        </div>`).join('');
+  } catch (e) {
+    document.getElementById('notif-eventos').innerHTML = `<div class="text-danger small p-2">No se pudieron cargar los eventos.</div>`;
   }
 }
 

@@ -126,11 +126,15 @@ def crear_solicitud(usuario_actual):
         db.session.rollback()
         return jsonify(error=f"Error al guardar solicitud: {str(e)}"), 500
 
-# GET - Listar todas las solicitudes
+# GET - Listar solicitudes: el usuario normal solo ve las suyas, el admin las ve todas
 @app.route('/adopciones', methods=['GET'])
-def listar_solicitudes():
+@auth_required()
+def listar_solicitudes(usuario_actual):
     try:
-        solicitudes = SolicitudAdopcion.query.all()
+        query = SolicitudAdopcion.query
+        if usuario_actual.get('rol') != 'admin':
+            query = query.filter_by(id_usuario=usuario_actual.get('id'))
+        solicitudes = query.order_by(SolicitudAdopcion.fecha_solicitud.desc()).all()
         return jsonify(solicitudes=[s.to_dict() for s in solicitudes]), 200
     except Exception as e:
         return jsonify(error=f"Error al listar: {str(e)}"), 500
@@ -167,8 +171,10 @@ def actualizar_solicitud(usuario_actual, id):
             except requests.exceptions.RequestException:
                 pass
 
+        # Notificar al solicitante del resultado (aprobado o rechazado)
+        if nuevo_estado in ('Aprobado', 'Rechazado'):
             try:
-                mensaje_notif = f"Tu solicitud de adopción para la mascota #{solicitud.id_mascota} ha sido {nuevo_estado}."
+                mensaje_notif = f"Tu solicitud de adopción para la mascota #{solicitud.id_mascota} ha sido {nuevo_estado.lower()}."
                 service_token = generate_service_token()
                 requests.post(
                     NOTIFICACIONES_SERVICE_URL,
