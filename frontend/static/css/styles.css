@@ -80,3 +80,40 @@ body{background:var(--bg-app);font-family:Inter,system-ui,-apple-system,"Segoe U
 /* Small adjustments */
 .btn-success{background:var(--emerald);border-color:transparent}
 .btn-success:hover{background:#059669}
+
+/* Badges de estado (Adopciones) */
+.badge-pendiente{background:#fef3c7;color:#92400e}
+.badge-aprobado{background:#d1fae5;color:#065f46}
+.badge-rechazado{background:#fee2e2;color:#991b1b}
+.badge-cancelado{background:#e2e8f0;color:#475569}
+
+/* Lista de Adopciones: tarjetas en vez de filas planas */
+.adoption-item{display:flex;justify-content:space-between;align-items:center;gap:1rem;
+  background:var(--card-bg);border-radius:10px;padding:.9rem 1.1rem;margin-bottom:.6rem;
+  box-shadow:0 2px 8px rgba(13,27,42,0.05)}
+.adoption-item .adoption-pet{font-weight:600}
+.adoption-item .adoption-meta{color:var(--muted);font-size:.85rem;margin-top:.15rem}
+
+/* Notificaciones: tarjetas con ícono y estado leído/no leído */
+.notif-item{display:flex;gap:.85rem;align-items:flex-start;background:var(--card-bg);
+  border-radius:10px;padding:.9rem 1.1rem;margin-bottom:.6rem;box-shadow:0 2px 8px rgba(13,27,42,0.05);
+  border-left:4px solid transparent;cursor:pointer;transition:background .15s ease}
+.notif-item:hover{background:#f8fafc}
+.notif-item.unread{border-left-color:var(--emerald)}
+.notif-item .notif-icon{font-size:1.2rem;color:var(--emerald);margin-top:.1rem}
+.notif-item.read .notif-icon{color:#94a3b8}
+.notif-item .notif-msg{font-weight:500}
+.notif-item.read .notif-msg{font-weight:400;color:#64748b}
+.notif-item .notif-date{color:var(--muted);font-size:.78rem;margin-top:.2rem}
+.notif-unread-dot{width:8px;height:8px;border-radius:50%;background:var(--emerald);flex-shrink:0;margin-top:.4rem}
+
+/* Historial de donaciones */
+.donation-item{display:flex;justify-content:space-between;align-items:center;gap:1rem;
+  background:var(--card-bg);border-radius:10px;padding:.85rem 1.1rem;margin-bottom:.55rem;
+  box-shadow:0 2px 8px rgba(13,27,42,0.05)}
+.donation-item .donation-amount{font-weight:700;color:#059669}
+.donation-item .donation-meta{color:var(--muted);font-size:.85rem}
+
+/* Modal detalle de mascota */
+.pet-detail-photo{width:100%;height:260px;object-fit:cover;border-radius:10px;background:#f3f4f6}
+.pet-detail-badges{display:flex;flex-wrap:wrap;gap:.4rem;margin:.75rem 0}

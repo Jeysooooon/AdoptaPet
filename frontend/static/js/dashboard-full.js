@@ -400,7 +400,61 @@ async function loadPetsInto(container, refetch = false) {
   }
 }
 
-function onPetAction(e) { const btn = e.currentTarget; const action = btn.dataset.action; const id = btn.dataset.id; if (action === 'view') { showAlert(`Ver detalle de mascota ${id}`, 'info'); } if (action === 'adopt') requestAdoption(id); }
+function onPetAction(e) { const btn = e.currentTarget; const action = btn.dataset.action; const id = btn.dataset.id; if (action === 'view') { showPetDetail(id); } if (action === 'adopt') requestAdoption(id); }
+
+// ---------- Detalle de mascota (modal) ----------
+function showPetDetail(id) {
+  const p = allPetsCache.find(x => String(x.id_mascota) === String(id));
+  if (!p) { showAlert('No se encontró la información de esta mascota.', 'warning'); return; }
+
+  const modalId = 'petDetailModal';
+  const existing = document.getElementById(modalId);
+  if (existing) existing.remove();
+
+  const badgeClass = (p.estado === 'Disponible') ? 'badge-available' : 'badge-locked';
+  const tamano = p['tamaño'] || p.tamano || '';
+  const edadTexto = formatEdad(p.edad_meses);
+  const sexo = p.sexo || '';
+  const foto = p.foto_url || PET_PLACEHOLDER;
+
+  const html = `
+  <div class="modal fade" id="${modalId}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">${escapeHtml(p.nombre)}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <img src="${escapeHtml(foto)}" class="pet-detail-photo mb-3" alt="${escapeHtml(p.nombre)}" onerror="this.onerror=null;this.src='${PET_PLACEHOLDER}';">
+          <div class="d-flex justify-content-between align-items-center">
+            <p class="text-muted mb-0">${escapeHtml(p.especie || '')} • ${escapeHtml(p.raza || '')}</p>
+            <span class="badge ${badgeClass}">${escapeHtml(p.estado || '')}</span>
+          </div>
+          <div class="pet-detail-badges">
+            ${edadTexto ? `<span class="badge pet-badge"><i class="bi bi-calendar3 me-1"></i>${escapeHtml(edadTexto)}</span>` : ''}
+            ${tamano ? `<span class="badge pet-badge"><i class="bi bi-arrows-angle-expand me-1"></i>${escapeHtml(tamano)}</span>` : ''}
+            ${sexo ? `<span class="badge pet-badge"><i class="bi bi-gender-ambiguous me-1"></i>${escapeHtml(sexo)}</span>` : ''}
+          </div>
+          <p class="mb-0">${escapeHtml(p.descripcion || 'Sin descripción disponible.')}</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cerrar</button>
+          <button type="button" class="btn btn-success" id="petDetailAdoptBtn" ${p.estado !== 'Disponible' ? 'disabled' : ''}>Solicitar Adopción</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+  const modalEl = document.getElementById(modalId);
+  const modal = new bootstrap.Modal(modalEl);
+  modal.show();
+  modalEl.addEventListener('hidden.bs.modal', () => { try { modalEl.remove(); } catch (e) {} });
+  document.getElementById('petDetailAdoptBtn').addEventListener('click', () => {
+    modal.hide();
+    requestAdoption(p.id_mascota);
+  });
+}
 
 async function requestAdoption(id) {
   if (getRole() === 'invitado') { showAlert('Debes iniciar sesión para solicitar adopción', 'warning'); openLoginModal(); return; }
@@ -490,14 +544,56 @@ async function submitNewPet(modalEl) {
 }
 
 // ---------- Adopciones (protegida) ----------
+function adoptionStatusBadgeClass(estado) {
+  const e = (estado || '').toLowerCase();
+  if (e === 'aprobado' || e === 'aprobada') return 'badge-aprobado';
+  if (e === 'rechazado' || e === 'rechazada') return 'badge-rechazado';
+  if (e === 'cancelado' || e === 'cancelada') return 'badge-cancelado';
+  return 'badge-pendiente';
+}
+
+function formatFecha(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso);
+  return d.toLocaleDateString('es', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+// Busca el nombre de la mascota en el catálogo ya cargado (si existe), para
+// no mostrar solo "Mascota #ID".
+function petNameById(id) {
+  const p = allPetsCache.find(x => String(x.id_mascota) === String(id));
+  return p ? p.nombre : null;
+}
+
 async function renderAdoptionsView(root) {
   setActiveRoute('adoptions');
-  root.innerHTML = `<div class="table-card"><h4>Mis solicitudes de adopción</h4><div id="adoptions-list">Cargando...</div></div>`;
+  root.innerHTML = `<h4 class="mb-3">Mis solicitudes de adopción</h4><div id="adoptions-list"><div class="text-center text-muted p-4">Cargando solicitudes...</div></div>`;
   try {
     const res = await apiFetch('GET', `${CONFIG.ADOPTIONS_URL}/adopciones`, null, true);
     const items = res.solicitudes || res.adopciones || [];
-    if (!items.length) { document.getElementById('adoptions-list').innerHTML = '<div class="text-muted p-3">No hay solicitudes.</div>'; return; }
-    const rows = items.map(a => `<div class="d-flex justify-content-between py-2 border-bottom"><div><strong>${escapeHtml(a.nombre_mascota || a.id_mascota || 'Mascota')}</strong><div class="small text-muted">${escapeHtml(a.motivo_adopcion || 'Sin motivo')}</div></div><div class="text-end small">${escapeHtml(a.estado || 'pendiente')}</div></div>`).join('');
+    if (!items.length) {
+      document.getElementById('adoptions-list').innerHTML = `
+      <div class="empty-state text-center">
+        <div class="empty-state-icon"><i class="bi bi-heart"></i></div>
+        <h5 class="mb-2">Aún no tienes solicitudes</h5>
+        <p class="text-muted mb-0">Ve al catálogo de Mascotas y solicita una adopción.</p>
+      </div>`;
+      return;
+    }
+    const rows = items.map(a => {
+      const nombre = petNameById(a.id_mascota) || `Mascota #${a.id_mascota}`;
+      const badgeClass = adoptionStatusBadgeClass(a.estado);
+      return `
+      <div class="adoption-item">
+        <div>
+          <div class="adoption-pet"><i class="bi bi-heart-fill text-danger me-2"></i>${escapeHtml(nombre)}</div>
+          <div class="adoption-meta">${escapeHtml(a.motivo_adopcion || 'Sin motivo indicado')}</div>
+          <div class="adoption-meta">Solicitada el ${formatFecha(a.fecha_solicitud)}</div>
+        </div>
+        <span class="badge ${badgeClass}">${escapeHtml(a.estado || 'Pendiente')}</span>
+      </div>`;
+    }).join('');
     document.getElementById('adoptions-list').innerHTML = rows;
   } catch (err) {
     if (err instanceof AuthError) { handleSessionExpired(); renderAuthEmptyState(root, { title: 'Tu sesión expiró', message: 'Vuelve a iniciar sesión para ver tus solicitudes de adopción.' }); }
@@ -506,6 +602,34 @@ async function renderAdoptionsView(root) {
 }
 
 // ---------- Donaciones ----------
+async function loadDonationsHistory() {
+  const container = document.getElementById('donationsList');
+  if (!container) return;
+  try {
+    const res = await apiFetch('GET', `${CONFIG.DONATIONS_URL}/donaciones`);
+    const items = (res.donaciones || []).slice().sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    if (!items.length) {
+      container.innerHTML = `
+      <div class="empty-state text-center">
+        <div class="empty-state-icon"><i class="bi bi-heart"></i></div>
+        <h5 class="mb-2">Aún no hay donaciones</h5>
+        <p class="text-muted mb-0">Sé la primera persona en apoyar a las mascotas del refugio.</p>
+      </div>`;
+      return;
+    }
+    container.innerHTML = items.map(d => `
+      <div class="donation-item">
+        <div>
+          <div class="donation-meta">${escapeHtml(d.comentario || 'Donación anónima')}</div>
+          <div class="donation-meta">${formatFecha(d.fecha)}</div>
+        </div>
+        <span class="donation-amount">$${Number(d.monto).toFixed(2)}</span>
+      </div>`).join('');
+  } catch (err) {
+    container.innerHTML = `<div class="text-danger p-2">No se pudo cargar el historial de donaciones.</div>`;
+  }
+}
+
 function renderDonationsView(root) {
   setActiveRoute('donations');
   root.innerHTML = `
@@ -529,8 +653,11 @@ function renderDonationsView(root) {
       </div>
       <div class="col-12 text-end"><button class="btn btn-success" type="submit">Enviar Donación</button></div>
     </form>
-    <div id="donationsList" class="mt-3"></div>
-  </div>`;
+  </div>
+  <h5 class="mt-4 mb-3">Historial de donaciones</h5>
+  <div id="donationsList"><div class="text-center text-muted p-4">Cargando historial...</div></div>`;
+
+  loadDonationsHistory();
 
   root.querySelectorAll('.quick-amount-btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -555,6 +682,7 @@ function renderDonationsView(root) {
       showAlert('¡Gracias! Tu donación fue registrada. Ahora serás redirigido a la pasarela de pago.', 'success');
       form.reset();
       root.querySelectorAll('.quick-amount-btn').forEach(b => b.classList.remove('active'));
+      loadDonationsHistory();
     } catch (err) {
       if (err instanceof AuthError) handleSessionExpired({ background: true });
       else showAlert(err.message || 'Ocurrió un error al registrar tu donación.', 'danger');
@@ -689,12 +817,42 @@ function showNewEventForm(dateStr) {
 // ---------- Notificaciones (protegida) ----------
 async function renderNotificationsView(root) {
   setActiveRoute('notifications');
-  root.innerHTML = `<h4>Notificaciones</h4><div id="notifs" class="mt-2">Cargando...</div>`;
+  root.innerHTML = `<h4 class="mb-3">Notificaciones</h4><div id="notifs"><div class="text-center text-muted p-4">Cargando notificaciones...</div></div>`;
   try {
     const res = await apiFetch('GET', `${CONFIG.NOTIFS_URL}/notificaciones`, null, true);
     const items = res.notificaciones || [];
-    if (!items.length) { document.getElementById('notifs').innerHTML = '<div class="text-muted p-3">Sin notificaciones.</div>'; return; }
-    document.getElementById('notifs').innerHTML = items.map(n => `<div class="d-flex justify-content-between py-2 border-bottom"><div>${escapeHtml(n.titulo)}<div class="small text-muted">${escapeHtml(n.mensaje)}</div></div><div class="small text-muted">${escapeHtml(n.fecha || '')}</div></div>`).join('');
+    if (!items.length) {
+      document.getElementById('notifs').innerHTML = `
+      <div class="empty-state text-center">
+        <div class="empty-state-icon"><i class="bi bi-bell"></i></div>
+        <h5 class="mb-2">Tu bandeja está vacía</h5>
+        <p class="text-muted mb-0">Aquí verás avisos sobre tus solicitudes de adopción y más.</p>
+      </div>`;
+      return;
+    }
+    document.getElementById('notifs').innerHTML = items.map(n => `
+      <div class="notif-item ${n.leida ? 'read' : 'unread'}" data-id="${n.id_notificacion}">
+        <i class="bi ${n.leida ? 'bi-envelope-open' : 'bi-envelope-fill'} notif-icon"></i>
+        <div class="flex-fill">
+          <div class="notif-msg">${escapeHtml(n.mensaje)}</div>
+          <div class="notif-date">${formatFecha(n.fecha_creacion)}</div>
+        </div>
+        ${n.leida ? '' : '<span class="notif-unread-dot"></span>'}
+      </div>`).join('');
+
+    document.querySelectorAll('.notif-item.unread').forEach(el => {
+      el.addEventListener('click', async () => {
+        const id = el.dataset.id;
+        try {
+          await apiFetch('PUT', `${CONFIG.NOTIFS_URL}/notificaciones/${id}/leer`, {}, true);
+          el.classList.remove('unread');
+          el.classList.add('read');
+          el.querySelector('.notif-icon').className = 'bi bi-envelope-open notif-icon';
+          const dot = el.querySelector('.notif-unread-dot');
+          if (dot) dot.remove();
+        } catch (e) { /* si falla, se queda como no leída */ }
+      });
+    });
   } catch (err) {
     if (err instanceof AuthError) { handleSessionExpired(); renderAuthEmptyState(root, { title: 'Tu sesión expiró', message: 'Vuelve a iniciar sesión para ver tus notificaciones.' }); }
     else document.getElementById('notifs').innerHTML = `<div class="text-danger p-2">No se pudieron cargar tus notificaciones. Intenta más tarde.</div>`;
