@@ -109,10 +109,37 @@ function showAlert(message, type = 'info', timeout = 5000) {
 }
 function escapeHtml(s) { if (s === null || s === undefined) return ''; return String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;'); }
 
-function openLoginModal() {
+function openLoginModal(mode = 'login') {
   const modalEl = document.getElementById('authModal');
   if (!modalEl || typeof bootstrap === 'undefined') return;
+  setAuthMode(mode);
   bootstrap.Modal.getOrCreateInstance(modalEl).show();
+}
+
+// Cambia el modal entre modo "login" y "register": título, botón, campo de
+// nombre, pestañas y el texto del link de abajo.
+function setAuthMode(mode) {
+  const modeEl = document.getElementById('authMode');
+  if (!modeEl) return;
+  modeEl.value = mode;
+
+  const nombreGroup = document.getElementById('authNombreGroup');
+  const nombreInput = document.getElementById('authNombre');
+  const title = document.getElementById('authModalTitle');
+  const submit = document.getElementById('authSubmit');
+  const switchLink = document.getElementById('switchToRegister');
+  const tabLogin = document.getElementById('authTabLogin');
+  const tabRegister = document.getElementById('authTabRegister');
+
+  const isRegister = mode === 'register';
+
+  if (nombreGroup) nombreGroup.classList.toggle('d-none', !isRegister);
+  if (nombreInput) nombreInput.required = isRegister;
+  if (title) title.textContent = isRegister ? 'Registro' : 'Iniciar sesión';
+  if (submit) submit.textContent = isRegister ? 'Registrar' : 'Entrar';
+  if (switchLink) switchLink.textContent = isRegister ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate';
+  if (tabLogin) tabLogin.classList.toggle('active', !isRegister);
+  if (tabRegister) tabRegister.classList.toggle('active', isRegister);
 }
 
 // Empty state amigable para rutas protegidas (sin token o sesión vencida).
@@ -178,8 +205,10 @@ async function handleLoginSubmit(e) {
   e.preventDefault();
   const email = document.getElementById('authEmail').value.trim();
   const password = document.getElementById('authPassword').value.trim();
+  const nombre = (document.getElementById('authNombre')?.value || '').trim();
   const mode = document.getElementById('authMode').value || 'login';
   if (!email || !password) { showAlert('Correo y contraseña son requeridos', 'warning'); return; }
+  if (mode === 'register' && !nombre) { showAlert('El nombre es requerido para registrarte', 'warning'); return; }
   try {
     if (mode === 'login') {
       const res = await apiFetch('POST', `${CONFIG.USERS_URL}/login`, { correo: email, password }, false);
@@ -187,7 +216,7 @@ async function handleLoginSubmit(e) {
       localStorage.setItem(TOKEN_KEY, res.token);
       showAlert('Autenticación correcta', 'success');
     } else {
-      const res = await apiFetch('POST', `${CONFIG.USERS_URL}/registro`, { nombre: email.split('@')[0], correo: email, contrasena: password }, false);
+      const res = await apiFetch('POST', `${CONFIG.USERS_URL}/registro`, { nombre: nombre || email.split('@')[0], correo: email, contrasena: password }, false);
       if (res.token) localStorage.setItem(TOKEN_KEY, res.token);
       showAlert('Usuario creado y autenticado', 'success');
     }
@@ -704,19 +733,30 @@ function setupSidebar() {
 function setupAuthBindings() {
   const btnLogin = document.getElementById('btn-login');
   const btnLogout = document.getElementById('btn-logout');
-  if (btnLogin) btnLogin.addEventListener('click', openLoginModal);
+  if (btnLogin) btnLogin.addEventListener('click', () => openLoginModal('login'));
   if (btnLogout) btnLogout.addEventListener('click', () => {
     clearSession(); updateHeaderUser(); applyRoleVisibility(); showAlert('Sesión cerrada', 'info'); navigateTo('pets');
   });
   const authForm = document.getElementById('authForm');
   if (authForm) authForm.addEventListener('submit', handleLoginSubmit);
+
   const switchLink = document.getElementById('switchToRegister');
   if (switchLink) switchLink.addEventListener('click', (e) => {
     e.preventDefault();
-    const modeEl = document.getElementById('authMode');
-    modeEl.value = (modeEl.value === 'login' ? 'register' : 'login');
-    document.getElementById('authModalTitle').textContent = modeEl.value === 'login' ? 'Iniciar sesión' : 'Registro';
-    document.getElementById('authSubmit').textContent = modeEl.value === 'login' ? 'Entrar' : 'Registrar';
+    const current = document.getElementById('authMode').value || 'login';
+    setAuthMode(current === 'login' ? 'register' : 'login');
+  });
+
+  const tabLogin = document.getElementById('authTabLogin');
+  const tabRegister = document.getElementById('authTabRegister');
+  if (tabLogin) tabLogin.addEventListener('click', () => setAuthMode('login'));
+  if (tabRegister) tabRegister.addEventListener('click', () => setAuthMode('register'));
+
+  // Al cerrar el modal, siempre vuelve a modo login y limpia el formulario.
+  const modalEl = document.getElementById('authModal');
+  if (modalEl) modalEl.addEventListener('hidden.bs.modal', () => {
+    document.getElementById('authForm').reset();
+    setAuthMode('login');
   });
 }
 
